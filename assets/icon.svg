@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景圆 -->
+  <circle cx="256" cy="256" r="250" fill="#007AFF" stroke="#ffffff" stroke-width="8"/>
+  
+  <!-- AI大脑图标 -->
+  <g transform="translate(256, 256)">
+    <!-- 大脑主体 -->
+    <path d="M -80 -40 C -80 -80, -40 -100, 0 -100 C 40 -100, 80 -80, 80 -40 C 80 0, 40 20, 0 20 C -40 20, -80 0, -80 -40 Z" 
+          fill="#ffffff" stroke="none"/>
+    
+    <!-- 大脑纹理 -->
+    <path d="M -60 -20 Q -40 -30, -20 -20 Q 0 -30, 20 -20 Q 40 -30, 60 -20" 
+          stroke="#007AFF" stroke-width="4" fill="none"/>
+    <path d="M -60 -5 Q -40 -15, -20 -5 Q 0 -15, 20 -5 Q 40 -15, 60 -5" 
+          stroke="#007AFF" stroke-width="4" fill="none"/>
+    <path d="M -60 10 Q -40 0, -20 10 Q 0 0, 20 10 Q 40 0, 60 10" 
+          stroke="#007AFF" stroke-width="4" fill="none"/>
+    
+    <!-- 代码符号 -->
+    <text x="0" y="60" text-anchor="middle" font-family="monospace" font-size="36" fill="#ffffff" font-weight="bold">&lt;/&gt;</text>
+  </g>
+  
+  <!-- 装饰性元素 -->
+  <circle cx="120" cy="120" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="392" cy="120" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="120" cy="392" r="8" fill="#ffffff" opacity="0.8"/>
+  <circle cx="392" cy="392" r="8" fill="#ffffff" opacity="0.8"/>
+</svg>

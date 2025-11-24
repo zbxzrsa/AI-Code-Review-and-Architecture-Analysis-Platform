@@ -1,0 +1,173 @@
+/**
+ * 响应式与触摸体验优化样式
+ */
+
+/* 触摸目标尺寸优化 */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* 确保表单元素在触摸设备上有足够大的点击区域 */
+input, 
+select, 
+textarea, 
+button,
+[role="button"],
+.ant-btn {
+  min-height: 40px;
+  min-width: 40px;
+}
+
+/* 触摸反馈效果 */
+@media (hover: none) {
+  .ant-btn:active,
+  [role="button"]:active,
+  .ant-menu-item:active,
+  .ant-tabs-tab:active {
+    transform: scale(0.97);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* 响应式布局调整 */
+@media (max-width: 768px) {
+  /* 增加间距，提高可点击性 */
+  .ant-menu-item {
+    margin: 8px 0;
+    padding: 12px 16px;
+  }
+  
+  /* 调整表单元素间距 */
+  .ant-form-item {
+    margin-bottom: 20px;
+  }
+  
+  /* 确保按钮有足够的间距 */
+  .ant-btn + .ant-btn {
+    margin-left: 12px;
+  }
+  
+  /* 调整列表项高度 */
+  .ant-list-item {
+    padding: 16px;
+  }
+}
+
+/* 触摸设备上的滚动优化 */
+@media (hover: none) {
+  /* 使用更平滑的滚动 */
+  html, body {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* 确保可滚动区域有明显的视觉提示 */
+  .ant-table-body,
+  .ant-list-body,
+  .scrollable-content {
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+}
+
+/* 响应式表格调整 */
+@media (max-width: 768px) {
+  .ant-table {
+    overflow-x: auto;
+  }
+  
+  /* 在小屏幕上调整表格单元格大小 */
+  .ant-table-cell {
+    padding: 12px 8px;
+    white-space: nowrap;
+  }
+}
+
+/* 响应式卡片调整 */
+@media (max-width: 576px) {
+  .ant-card-body {
+    padding: 16px;
+  }
+  
+  .ant-card-head-title {
+    padding: 14px 0;
+  }
+}
+
+/* 响应式抽屉调整 */
+@media (max-width: 576px) {
+  .ant-drawer-content-wrapper {
+    width: 80% !important;
+  }
+}
+
+/* 响应式模态框调整 */
+@media (max-width: 576px) {
+  .ant-modal {
+    max-width: 90%;
+    margin: 8px auto;
+  }
+  
+  .ant-modal-body {
+    padding: 16px;
+  }
+}
+
+/* 触摸设备上的悬停状态替代方案 */
+@media (hover: none) {
+  /* 使用active状态代替hover状态 */
+  .ant-btn:hover,
+  .ant-menu-item:hover,
+  .ant-tabs-tab:hover {
+    /* 重置hover样式 */
+    background-color: inherit;
+    color: inherit;
+  }
+  
+  /* 为活动状态设置明显的视觉反馈 */
+  .ant-btn:active,
+  .ant-menu-item:active,
+  .ant-tabs-tab:active {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+}
+
+/* 确保足够的触摸区域间距 */
+.touch-spacing > * {
+  margin: 8px;
+}
+
+/* 响应式字体大小 */
+@media (max-width: 576px) {
+  html {
+    font-size: 16px;
+  }
+  
+  h1 {
+    font-size: 1.8rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+  }
+  
+  h3 {
+    font-size: 1.3rem;
+  }
+}
+
+/* 确保表单在移动设备上的可用性 */
+@media (max-width: 576px) {
+  .ant-form-item-label {
+    padding-bottom: 8px;
+  }
+  
+  /* 在小屏幕上将标签和控件垂直排列 */
+  .ant-form-horizontal .ant-form-item-label,
+  .ant-form-horizontal .ant-form-item-control {
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
+}

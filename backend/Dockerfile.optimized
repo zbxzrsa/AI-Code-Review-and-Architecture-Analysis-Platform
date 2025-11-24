@@ -1,0 +1,151 @@
+# 多阶段构建 - 基础镜像
+FROM python:3.11-slim as base
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装系统依赖（优化层大小）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    curl \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# 创建非root用户
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# 复制依赖文件
+COPY requirements.txt .
+
+# 优化Python依赖安装
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip cache purge
+
+# 开发阶段
+FROM base as development
+
+# 安装开发依赖
+COPY requirements-dev.txt .
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+# 复制源代码
+COPY . .
+
+# 暴露端口
+EXPOSE 8000
+
+# 开发环境启动命令（优化性能）
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--workers", "1", "--loop", "uvloop", "--http", "httptools"]
+
+# 生产阶段 - 多阶段优化
+FROM python:3.11-slim as builder
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# 复制并安装Python依赖
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# 生产阶段
+FROM python:3.11-slim as production
+
+# 安装运行时依赖
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# 创建非root用户
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# 从builder阶段复制Python包
+COPY --from=builder /root/.local /home/appuser/.local
+
+# 设置PATH
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# 复制源代码
+COPY --chown=appuser:appuser . .
+
+# 切换到非root用户
+USER appuser
+
+# 创建必要的目录
+RUN mkdir -p /app/logs /app/temp
+
+# 健康检查（优化）
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# 暴露端口
+EXPOSE 8000
+
+# 生产环境启动命令（优化性能）
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--loop", "uvloop", "--http", "httptools", "--access-log", "--log-level", "info"]
+
+# 边缘计算优化版本（更小的镜像）
+FROM python:3.11-alpine as edge
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# 安装最小依赖
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    curl \
+    ca-certificates
+
+WORKDIR /app
+
+# 创建非root用户
+RUN addgroup -g 1000 appuser && \
+    adduser -D -s /bin/sh -u 1000 -G appuser appuser
+
+# 复制核心依赖
+COPY requirements-edge.txt .
+RUN pip install --no-cache-dir --user -r requirements-edge.txt
+
+# 复制核心模块
+COPY --chown=appuser:appuser app/core ./app/core
+COPY --chown=appuser:appuser app/services/translation ./app/services/translation
+COPY --chown=appuser:appuser app/services/plugins ./app/services/plugins
+COPY --chown=appuser:appuser app/main.py ./app/
+
+# 切换到非root用户
+USER appuser
+
+# 设置PATH
+ENV PATH=/home/appuser/.local/bin:$PATH
+
+# 健康检查
+HEALTHCHECK --interval=60s --timeout=10s --start-period=10s --retries=2 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# 暴露端口
+EXPOSE 8000
+
+# 边缘环境启动命令（资源优化）
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--loop", "asyncio"]

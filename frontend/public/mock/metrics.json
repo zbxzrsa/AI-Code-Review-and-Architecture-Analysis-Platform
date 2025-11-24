@@ -1,0 +1,12 @@
+{
+  "kpis": {
+    "analyzedProjects": 128,
+    "issuesFound": 42,
+    "vulnerabilities": 5,
+    "coverage": 82
+  },
+  "trends": {
+    "issueTrend": [5, 6, 7, 8, 9, 10, 12],
+    "analysisTime": [2.5, 2.4, 2.3, 2.2, 2.1, 2.0, 2.1]
+  }
+}

@@ -1,0 +1,7 @@
+[app_hosts]
+your.dev.server ansible_host=YOUR_DEV_HOST ansible_user=ubuntu
+
+[vars]
+registry=ghcr.io
+backend_image={{ github_repository }}/backend
+frontend_image={{ github_repository }}/frontend

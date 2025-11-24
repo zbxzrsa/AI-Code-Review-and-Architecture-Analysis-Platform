@@ -1,0 +1,293 @@
+version: '3.8'
+
+services:
+  # 后端FastAPI服务（用于API与监控）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ./Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - POSTGRES_DB=codeinsight
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    networks:
+      - codeinsight-network
+  # API网关
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: ./Dockerfile
+    ports:
+      - "8001:8000"
+    depends_on:
+      - kafka
+      - consul
+    environment:
+      - NODE_ENV=production
+      - PORT=8000
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - JWT_SECRET=your-secret-key-here
+    restart: unless-stopped
+    networks:
+      - codeinsight-network
+
+  # 代码解析服务
+  code-parser:
+    build:
+      context: ./services/code-parser
+      dockerfile: ../../docker/code-parser/Dockerfile
+    depends_on:
+      - kafka
+      - consul
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+    restart: unless-stopped
+    networks:
+      - codeinsight-network
+
+  # AI分析服务
+  ai-analysis:
+    build:
+      context: ./services/ai-analysis
+      dockerfile: ../../docker/ai-analysis/Dockerfile
+    depends_on:
+      - kafka
+      - consul
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+    restart: unless-stopped
+    networks:
+      - codeinsight-network
+
+  # 数据持久化服务
+  data-service:
+    build:
+      context: ./services/data-service
+      dockerfile: ../../docker/data-service/Dockerfile
+    depends_on:
+      - kafka
+      - consul
+      - postgres
+      - neo4j
+      - redis
+    environment:
+      - PYTHONUNBUFFERED=1
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - CONSUL_HOST=consul
+      - CONSUL_PORT=8500
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=codeinsight
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - NEO4J_HOST=neo4j
+      - NEO4J_PORT=7687
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    restart: unless-stopped
+    networks:
+      - codeinsight-network
+
+  # 前端应用
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api-gateway
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+    networks:
+      - codeinsight-network
+
+  # Kafka消息队列
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - codeinsight-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - codeinsight-network
+
+  # 服务发现
+  consul:
+    image: hashicorp/consul:1.14
+    ports:
+      - "8500:8500"
+    command: agent -dev -client=0.0.0.0
+    networks:
+      - codeinsight-network
+
+  # 数据库
+  postgres:
+    image: postgres:15
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: codeinsight
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - codeinsight-network
+
+  neo4j:
+    image: neo4j:5.9
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      NEO4J_AUTH: neo4j/password
+      NEO4J_dbms_memory_heap_max__size: 2G
+    volumes:
+      - neo4j_data:/data
+      - ./docker/neo4j/init.cypher:/import/init.cypher
+    networks:
+      - codeinsight-network
+
+  # 缓存
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - codeinsight-network
+
+  # 监控
+  prometheus:
+    image: prom/prometheus:v2.42.0
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus:/etc/prometheus
+    networks:
+      - codeinsight-network
+
+
+
+  # ELK Stack
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.9.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - codeinsight-network
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.9.0
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5000:5000"  # TCP输入供应用发送JSON日志
+    volumes:
+      - ./docker/logstash/pipeline:/usr/share/logstash/pipeline
+    networks:
+      - codeinsight-network
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.9.0
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    networks:
+      - codeinsight-network
+
+  # Airflow
+  airflow-init:
+    image: apache/airflow:2.6.1
+    entrypoint: /bin/bash
+    command: -c "airflow db init && airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin || true"
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+    networks:
+      - codeinsight-network
+
+  airflow-webserver:
+    image: apache/airflow:2.6.1
+    depends_on:
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+    ports:
+      - "8080:8080"
+    command: webserver
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+    networks:
+      - codeinsight-network
+
+  airflow-scheduler:
+    image: apache/airflow:2.6.1
+    depends_on:
+      - airflow-init
+    environment:
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
+    command: scheduler
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+    networks:
+      - codeinsight-network
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  redis_data:
+  es_data:
+
+networks:
+  codeinsight-network:
+    driver: bridge

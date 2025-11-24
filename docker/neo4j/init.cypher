@@ -1,0 +1,11 @@
+// 创建约束
+CREATE CONSTRAINT IF NOT EXISTS ON (p:Project) ASSERT p.id IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS ON (f:File) ASSERT f.path IS UNIQUE;
+CREATE CONSTRAINT IF NOT EXISTS ON (c:Class) ASSERT (c.name, c.file_path) IS NODE KEY;
+CREATE CONSTRAINT IF NOT EXISTS ON (m:Method) ASSERT (m.name, m.signature, m.file_path) IS NODE KEY;
+
+// 创建索引
+CREATE INDEX IF NOT EXISTS FOR (p:Project) ON (p.name);
+CREATE INDEX IF NOT EXISTS FOR (f:File) ON (f.name);
+CREATE INDEX IF NOT EXISTS FOR (c:Class) ON (c.name);
+CREATE INDEX IF NOT EXISTS FOR (m:Method) ON (m.name);

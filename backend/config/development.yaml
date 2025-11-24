@@ -1,0 +1,109 @@
+# 开发环境配置
+app_name: "Translation System - Development"
+app_version: "1.0.0"
+environment: "development"
+debug: true
+log_level: "DEBUG"
+
+# 服务配置
+host: "127.0.0.1"
+port: 8000
+workers: 1
+
+# 数据库配置
+database:
+  host: "localhost"
+  port: 5432
+  database: "translation_dev"
+  username: "dev_user"
+  password: "dev_password"
+  pool_size: 5
+  max_overflow: 10
+
+# Redis配置
+redis:
+  host: "localhost"
+  port: 6379
+  database: 0
+  password: null
+  max_connections: 50
+  timeout: 30
+
+# 翻译服务配置
+translation:
+  default_engine: "google"
+  max_text_length: 5000
+  cache_ttl: 1800  # 30分钟
+  rate_limit: 1000  # 开发环境更宽松的限制
+  supported_languages:
+    - "en"
+    - "zh"
+    - "ja"
+    - "ko"
+    - "fr"
+    - "de"
+    - "es"
+    - "ru"
+    - "ar"
+    - "pt"
+
+# 监控配置
+monitoring:
+  enabled: true
+  metrics_interval: 30  # 开发环境更频繁的监控
+  alert_threshold_cpu: 90.0
+  alert_threshold_memory: 90.0
+  retention_days: 7  # 开发环境保留时间较短
+
+# 安全配置
+security:
+  secret_key: "dev-secret-key-change-in-production-32chars"
+  jwt_expiration: 7200  # 2小时，开发环境更长
+  password_min_length: 6  # 开发环境要求较低
+  max_login_attempts: 10  # 开发环境更宽松
+  session_timeout: 3600  # 1小时
+
+# 开发环境特定配置
+development:
+  auto_reload: true
+  show_sql: true
+  mock_external_apis: true
+  enable_cors: true
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://127.0.0.1:3000"
+  
+# 日志配置
+logging:
+  level: "DEBUG"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/development.log"
+  max_size: "10MB"
+  backup_count: 5
+
+# 外部服务配置
+external_services:
+  google_translate:
+    api_key: "dev-google-api-key"
+    endpoint: "https://translation.googleapis.com/language/translate/v2"
+    timeout: 30
+  
+  openai:
+    api_key: "dev-openai-api-key"
+    model: "gpt-3.5-turbo"
+    max_tokens: 2000
+    timeout: 60
+
+# 缓存配置
+cache:
+  default_ttl: 1800
+  max_size: 1000
+  cleanup_interval: 300
+
+# 任务队列配置
+task_queue:
+  broker_url: "redis://localhost:6379/1"
+  result_backend: "redis://localhost:6379/2"
+  task_serializer: "json"
+  result_serializer: "json"
+  timezone: "UTC"

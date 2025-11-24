@@ -1,0 +1,65 @@
+---
+- name: Blue-Green deploy CodeInsight
+  hosts: app_hosts
+  become: yes
+  vars:
+    app_name: codeinsight
+    active_file: /etc/codeinsight/active_color
+    backend_port: 8000
+    frontend_port: 3000
+  tasks:
+    - name: Ensure directories exist
+      file:
+        path: "/etc/{{ app_name }}"
+        state: directory
+
+    - name: Read active color
+      command: cat {{ active_file }}
+      register: active_color_cmd
+      ignore_errors: yes
+
+    - name: Set active_color fact
+      set_fact:
+        active_color: "{{ (active_color_cmd.stdout | default('blue')) }}"
+
+    - name: Determine next color
+      set_fact:
+        next_color: "{{ 'green' if active_color == 'blue' else 'blue' }}"
+
+    - name: Render docker-compose for next color
+      template:
+        src: templates/docker-compose.prod.yml.j2
+        dest: "/opt/{{ app_name }}/docker-compose-{{ next_color }}.yml"
+
+    - name: Pull images
+      command: >-
+        docker compose -f /opt/{{ app_name }}/docker-compose-{{ next_color }}.yml pull
+
+    - name: Start next stack
+      command: >-
+        COMPOSE_PROJECT_NAME={{ app_name }}_{{ next_color }} docker compose -f /opt/{{ app_name }}/docker-compose-{{ next_color }}.yml up -d
+
+    - name: Health check new backend
+      uri:
+        url: "http://localhost:{{ backend_port }}/health"
+        status_code: 200
+        timeout: 10
+      register: health_result
+      retries: 5
+      delay: 3
+      until: health_result.status == 200
+
+    - name: Switch active color
+      copy:
+        dest: {{ active_file }}
+        content: "{{ next_color }}"
+
+    - name: Stop old stack
+      command: >-
+        COMPOSE_PROJECT_NAME={{ app_name }}_{{ active_color }} docker compose -f /opt/{{ app_name }}/docker-compose-{{ active_color }}.yml down
+      ignore_errors: yes
+
+  rescue:
+    - name: Rollback on failure
+      debug:
+        msg: "Deployment failed, keeping previous stack active"

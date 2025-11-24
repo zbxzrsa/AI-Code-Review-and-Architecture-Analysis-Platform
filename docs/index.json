@@ -1,0 +1,476 @@
+{
+  "generated_at": "2025-11-23T15:28:17.821752",
+  "total_documents": 17,
+  "categories": {
+    "technical": [
+      {
+        "id": "system_architecture",
+        "title": "System Architecture Documentation",
+        "type": "architecture",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.706557",
+        "category": "technical",
+        "tags": [
+          "architecture",
+          "design",
+          "patterns",
+          "components",
+          "technology-stack"
+        ]
+      },
+      {
+        "id": "ai_analysis_api",
+        "title": "API Documentation - Ai Analysis Api",
+        "type": "api",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.713461",
+        "category": "technical",
+        "tags": [
+          "api",
+          "endpoints",
+          "authentication",
+          "reference"
+        ]
+      },
+      {
+        "id": "api_documentation",
+        "title": "API Documentation - Api Documentation",
+        "type": "api",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.717059",
+        "category": "technical",
+        "tags": [
+          "api",
+          "endpoints",
+          "authentication",
+          "reference"
+        ]
+      }
+    ],
+    "user": [
+      {
+        "id": "user_guide",
+        "title": "智能代码审查与架构分析平台用户指南",
+        "type": "user_guide",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.722156",
+        "category": "user",
+        "tags": [
+          "user-guide",
+          "tutorial",
+          "getting-started"
+        ]
+      },
+      {
+        "id": "QUICK_START",
+        "title": "🎯 项目完整规划与交付 - 核心总结",
+        "type": "user_guide",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.726741",
+        "category": "user",
+        "tags": [
+          "user-guide",
+          "tutorial",
+          "getting-started"
+        ]
+      },
+      {
+        "id": "shortcut-creation-guide",
+        "title": "快捷方式创建脚本使用说明",
+        "type": "user_guide",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.730219",
+        "category": "user",
+        "tags": [
+          "user-guide",
+          "tutorial",
+          "getting-started"
+        ]
+      }
+    ],
+    "development": [
+      {
+        "id": "code-standards",
+        "title": "代码规范指南",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.734212",
+        "category": "development",
+        "tags": [
+          "implementation",
+          "guidelines",
+          "standards",
+          "development"
+        ]
+      },
+      {
+        "id": "IMPLEMENTATION_ROADMAP",
+        "title": "智能代码审查平台 - 完整实现路线图",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.738787",
+        "category": "development",
+        "tags": [
+          "implementation",
+          "guidelines",
+          "standards",
+          "development"
+        ]
+      },
+      {
+        "id": "cleanup_plan",
+        "title": "全面代码清理与重构计划",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.743624",
+        "category": "development",
+        "tags": [
+          "implementation",
+          "guidelines",
+          "standards",
+          "development"
+        ]
+      },
+      {
+        "id": "optimization_OPTIMIZATION_REPORT",
+        "title": "Optimization Report - Optimization Report",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.747723",
+        "category": "development",
+        "tags": [
+          "optimization",
+          "performance",
+          "improvements"
+        ]
+      },
+      {
+        "id": "optimization_FINAL_OPTIMIZATION_REPORT",
+        "title": "Optimization Report - Final Optimization Report",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.751343",
+        "category": "development",
+        "tags": [
+          "optimization",
+          "performance",
+          "improvements"
+        ]
+      },
+      {
+        "id": "delivery_DELIVERY_SUMMARY",
+        "title": "Delivery Summary - Delivery Summary",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.755070",
+        "category": "development",
+        "tags": [
+          "delivery",
+          "summary",
+          "milestone"
+        ]
+      },
+      {
+        "id": "delivery_PHASE_1_DELIVERY_SUMMARY",
+        "title": "Delivery Summary - Phase 1 Delivery Summary",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.759397",
+        "category": "development",
+        "tags": [
+          "delivery",
+          "summary",
+          "milestone"
+        ]
+      },
+      {
+        "id": "delivery_PHASE_2_DELIVERY_SUMMARY",
+        "title": "Delivery Summary - Phase 2 Delivery Summary",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.763503",
+        "category": "development",
+        "tags": [
+          "delivery",
+          "summary",
+          "milestone"
+        ]
+      },
+      {
+        "id": "checklist_PHASE_1_ACCEPTANCE_CHECKLIST",
+        "title": "Checklist - Phase 1 Acceptance Checklist",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.767327",
+        "category": "development",
+        "tags": [
+          "checklist",
+          "acceptance",
+          "criteria",
+          "quality"
+        ]
+      },
+      {
+        "id": "checklist_PHASE_2_ACCEPTANCE_CHECKLIST",
+        "title": "Checklist - Phase 2 Acceptance Checklist",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.770500",
+        "category": "development",
+        "tags": [
+          "checklist",
+          "acceptance",
+          "criteria",
+          "quality"
+        ]
+      },
+      {
+        "id": "checklist_usability-checklist",
+        "title": "Checklist - Usability-Checklist",
+        "type": "implementation",
+        "status": "approved",
+        "updated_at": "2025-11-23T15:28:17.773645",
+        "category": "development",
+        "tags": [
+          "checklist",
+          "acceptance",
+          "criteria",
+          "quality"
+        ]
+      }
+    ]
+  },
+  "documents": [
+    {
+      "id": "system_architecture",
+      "title": "System Architecture Documentation",
+      "type": "architecture",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.706557",
+      "category": "technical",
+      "tags": [
+        "architecture",
+        "design",
+        "patterns",
+        "components",
+        "technology-stack"
+      ]
+    },
+    {
+      "id": "ai_analysis_api",
+      "title": "API Documentation - Ai Analysis Api",
+      "type": "api",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.713461",
+      "category": "technical",
+      "tags": [
+        "api",
+        "endpoints",
+        "authentication",
+        "reference"
+      ]
+    },
+    {
+      "id": "api_documentation",
+      "title": "API Documentation - Api Documentation",
+      "type": "api",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.717059",
+      "category": "technical",
+      "tags": [
+        "api",
+        "endpoints",
+        "authentication",
+        "reference"
+      ]
+    },
+    {
+      "id": "user_guide",
+      "title": "智能代码审查与架构分析平台用户指南",
+      "type": "user_guide",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.722156",
+      "category": "user",
+      "tags": [
+        "user-guide",
+        "tutorial",
+        "getting-started"
+      ]
+    },
+    {
+      "id": "QUICK_START",
+      "title": "🎯 项目完整规划与交付 - 核心总结",
+      "type": "user_guide",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.726741",
+      "category": "user",
+      "tags": [
+        "user-guide",
+        "tutorial",
+        "getting-started"
+      ]
+    },
+    {
+      "id": "shortcut-creation-guide",
+      "title": "快捷方式创建脚本使用说明",
+      "type": "user_guide",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.730219",
+      "category": "user",
+      "tags": [
+        "user-guide",
+        "tutorial",
+        "getting-started"
+      ]
+    },
+    {
+      "id": "code-standards",
+      "title": "代码规范指南",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.734212",
+      "category": "development",
+      "tags": [
+        "implementation",
+        "guidelines",
+        "standards",
+        "development"
+      ]
+    },
+    {
+      "id": "IMPLEMENTATION_ROADMAP",
+      "title": "智能代码审查平台 - 完整实现路线图",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.738787",
+      "category": "development",
+      "tags": [
+        "implementation",
+        "guidelines",
+        "standards",
+        "development"
+      ]
+    },
+    {
+      "id": "cleanup_plan",
+      "title": "全面代码清理与重构计划",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.743624",
+      "category": "development",
+      "tags": [
+        "implementation",
+        "guidelines",
+        "standards",
+        "development"
+      ]
+    },
+    {
+      "id": "optimization_OPTIMIZATION_REPORT",
+      "title": "Optimization Report - Optimization Report",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.747723",
+      "category": "development",
+      "tags": [
+        "optimization",
+        "performance",
+        "improvements"
+      ]
+    },
+    {
+      "id": "optimization_FINAL_OPTIMIZATION_REPORT",
+      "title": "Optimization Report - Final Optimization Report",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.751343",
+      "category": "development",
+      "tags": [
+        "optimization",
+        "performance",
+        "improvements"
+      ]
+    },
+    {
+      "id": "delivery_DELIVERY_SUMMARY",
+      "title": "Delivery Summary - Delivery Summary",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.755070",
+      "category": "development",
+      "tags": [
+        "delivery",
+        "summary",
+        "milestone"
+      ]
+    },
+    {
+      "id": "delivery_PHASE_1_DELIVERY_SUMMARY",
+      "title": "Delivery Summary - Phase 1 Delivery Summary",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.759397",
+      "category": "development",
+      "tags": [
+        "delivery",
+        "summary",
+        "milestone"
+      ]
+    },
+    {
+      "id": "delivery_PHASE_2_DELIVERY_SUMMARY",
+      "title": "Delivery Summary - Phase 2 Delivery Summary",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.763503",
+      "category": "development",
+      "tags": [
+        "delivery",
+        "summary",
+        "milestone"
+      ]
+    },
+    {
+      "id": "checklist_PHASE_1_ACCEPTANCE_CHECKLIST",
+      "title": "Checklist - Phase 1 Acceptance Checklist",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.767327",
+      "category": "development",
+      "tags": [
+        "checklist",
+        "acceptance",
+        "criteria",
+        "quality"
+      ]
+    },
+    {
+      "id": "checklist_PHASE_2_ACCEPTANCE_CHECKLIST",
+      "title": "Checklist - Phase 2 Acceptance Checklist",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.770500",
+      "category": "development",
+      "tags": [
+        "checklist",
+        "acceptance",
+        "criteria",
+        "quality"
+      ]
+    },
+    {
+      "id": "checklist_usability-checklist",
+      "title": "Checklist - Usability-Checklist",
+      "type": "implementation",
+      "status": "approved",
+      "updated_at": "2025-11-23T15:28:17.773645",
+      "category": "development",
+      "tags": [
+        "checklist",
+        "acceptance",
+        "criteria",
+        "quality"
+      ]
+    }
+  ]
+}

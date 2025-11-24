@@ -1,0 +1,183 @@
+# 边缘计算环境配置
+app_name: "Translation System - Edge"
+app_version: "1.0.0"
+environment: "edge"
+debug: false
+log_level: "WARNING"
+
+# 服务配置 - 边缘环境资源受限
+host: "0.0.0.0"
+port: 8000
+workers: 1  # 边缘设备通常单核或双核
+
+# 数据库配置 - 使用轻量级SQLite
+database:
+  type: "sqlite"
+  path: "/data/translation_edge.db"
+  pool_size: 5
+  max_overflow: 5
+  timeout: 30
+
+# Redis配置 - 边缘环境使用内存缓存
+redis:
+  host: "localhost"
+  port: 6379
+  database: 0
+  password: null
+  max_connections: 20  # 减少连接数
+  timeout: 10
+
+# 翻译服务配置 - 边缘优化
+translation:
+  default_engine: "local"  # 优先使用本地模型
+  max_text_length: 2000  # 减少最大长度
+  cache_ttl: 7200  # 增加缓存时间以减少计算
+  rate_limit: 50  # 降低速率限制
+  supported_languages:
+    - "en"
+    - "zh"
+    - "ja"
+    - "ko"  # 仅支持主要语言
+  
+  # 边缘特定配置
+  edge_config:
+    offline_mode: true
+    local_model_path: "/models"
+    model_cache_size: "500MB"
+    batch_processing: true
+    batch_size: 10
+
+# 监控配置 - 轻量级监控
+monitoring:
+  enabled: true
+  metrics_interval: 300  # 5分钟，减少监控频率
+  alert_threshold_cpu: 95.0  # 边缘设备容忍更高的CPU使用率
+  alert_threshold_memory: 95.0
+  retention_days: 3  # 短期保留
+  lightweight_mode: true
+
+# 安全配置 - 简化安全设置
+security:
+  secret_key: "${EDGE_SECRET_KEY}"
+  jwt_expiration: 1800  # 30分钟
+  password_min_length: 6
+  max_login_attempts: 3
+  session_timeout: 900  # 15分钟
+
+# 边缘环境特定配置
+edge:
+  offline_capable: true
+  sync_interval: 3600  # 1小时同步一次
+  data_compression: true
+  bandwidth_optimization: true
+  local_storage_limit: "1GB"
+  
+  # 网络配置
+  network:
+    connection_timeout: 5
+    read_timeout: 10
+    max_retries: 2
+    retry_delay: 0.5
+  
+  # 资源限制
+  resources:
+    max_memory: "512MB"
+    max_cpu_percent: 80
+    max_disk_usage: "2GB"
+
+# 日志配置 - 最小化日志
+logging:
+  level: "WARNING"
+  format: "%(asctime)s - %(levelname)s - %(message)s"
+  file: "/var/log/translation-edge.log"
+  max_size: "10MB"
+  backup_count: 2
+  console_output: false
+
+# 外部服务配置 - 边缘优化
+external_services:
+  # 仅在网络可用时使用
+  google_translate:
+    api_key: "${GOOGLE_TRANSLATE_API_KEY}"
+    endpoint: "https://translation.googleapis.com/language/translate/v2"
+    timeout: 10
+    retry_attempts: 1
+    fallback_to_local: true
+  
+  # 本地模型配置
+  local_models:
+    enabled: true
+    model_path: "/models"
+    models:
+      - name: "en-zh"
+        path: "/models/en-zh.bin"
+        size: "100MB"
+      - name: "zh-en"
+        path: "/models/zh-en.bin"
+        size: "100MB"
+
+# 缓存配置 - 积极缓存
+cache:
+  default_ttl: 7200  # 2小时
+  max_size: 5000
+  cleanup_interval: 1800  # 30分钟
+  persistent_cache: true
+  cache_file: "/data/translation_cache.db"
+
+# 同步配置
+sync:
+  enabled: true
+  central_server: "${CENTRAL_SERVER_URL}"
+  sync_interval: 3600  # 1小时
+  batch_size: 100
+  compression: true
+  
+  # 同步策略
+  strategy:
+    upload_logs: true
+    download_updates: true
+    sync_models: false  # 模型不自动同步，节省带宽
+    sync_config: true
+
+# 性能配置 - 边缘优化
+performance:
+  max_request_size: "1MB"
+  request_timeout: 15
+  keepalive_timeout: 2
+  max_connections: 50
+  connection_pool_size: 10
+  
+  # 内存管理
+  memory_management:
+    gc_threshold: 0.8
+    cache_cleanup_threshold: 0.9
+    model_unload_threshold: 0.95
+
+# 健康检查配置
+health_check:
+  enabled: true
+  interval: 60
+  timeout: 5
+  endpoints:
+    - "/health"
+    - "/ready"
+  
+  # 边缘特定检查
+  edge_checks:
+    disk_space: true
+    memory_usage: true
+    model_availability: true
+    network_connectivity: false  # 边缘设备可能离线
+
+# 故障恢复配置
+failover:
+  enabled: true
+  local_fallback: true
+  cache_fallback: true
+  offline_mode_timeout: 300  # 5分钟后进入离线模式
+  
+  # 恢复策略
+  recovery:
+    auto_restart: true
+    max_restart_attempts: 3
+    restart_delay: 30

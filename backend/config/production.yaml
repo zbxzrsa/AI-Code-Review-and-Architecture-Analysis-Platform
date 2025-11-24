@@ -1,0 +1,155 @@
+# 生产环境配置
+app_name: "Translation System"
+app_version: "1.0.0"
+environment: "production"
+debug: false
+log_level: "INFO"
+
+# 服务配置
+host: "0.0.0.0"
+port: 8000
+workers: 4
+
+# 数据库配置
+database:
+  host: "${DB_HOST}"
+  port: 5432
+  database: "${DB_NAME}"
+  username: "${DB_USER}"
+  password: "${DB_PASSWORD}"
+  pool_size: 20
+  max_overflow: 30
+
+# Redis配置
+redis:
+  host: "${REDIS_HOST}"
+  port: 6379
+  database: 0
+  password: "${REDIS_PASSWORD}"
+  max_connections: 200
+  timeout: 30
+
+# 翻译服务配置
+translation:
+  default_engine: "google"
+  max_text_length: 5000
+  cache_ttl: 3600  # 1小时
+  rate_limit: 100  # 生产环境严格限制
+  supported_languages:
+    - "en"
+    - "zh"
+    - "ja"
+    - "ko"
+    - "fr"
+    - "de"
+    - "es"
+    - "ru"
+    - "ar"
+    - "pt"
+    - "it"
+    - "nl"
+    - "sv"
+    - "da"
+    - "no"
+
+# 监控配置
+monitoring:
+  enabled: true
+  metrics_interval: 60
+  alert_threshold_cpu: 80.0
+  alert_threshold_memory: 85.0
+  retention_days: 30
+
+# 安全配置
+security:
+  secret_key: "${SECRET_KEY}"
+  jwt_expiration: 3600  # 1小时
+  password_min_length: 8
+  max_login_attempts: 5
+  session_timeout: 1800  # 30分钟
+
+# 生产环境特定配置
+production:
+  auto_reload: false
+  show_sql: false
+  mock_external_apis: false
+  enable_cors: false
+  ssl_enabled: true
+  ssl_cert_path: "/etc/ssl/certs/app.crt"
+  ssl_key_path: "/etc/ssl/private/app.key"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "/var/log/translation/app.log"
+  max_size: "100MB"
+  backup_count: 10
+  syslog_enabled: true
+  syslog_address: "/dev/log"
+
+# 外部服务配置
+external_services:
+  google_translate:
+    api_key: "${GOOGLE_TRANSLATE_API_KEY}"
+    endpoint: "https://translation.googleapis.com/language/translate/v2"
+    timeout: 30
+    retry_attempts: 3
+    retry_delay: 1
+  
+  openai:
+    api_key: "${OPENAI_API_KEY}"
+    model: "gpt-4"
+    max_tokens: 2000
+    timeout: 60
+    retry_attempts: 3
+    retry_delay: 2
+
+# 缓存配置
+cache:
+  default_ttl: 3600
+  max_size: 10000
+  cleanup_interval: 600
+
+# 任务队列配置
+task_queue:
+  broker_url: "${CELERY_BROKER_URL}"
+  result_backend: "${CELERY_RESULT_BACKEND}"
+  task_serializer: "json"
+  result_serializer: "json"
+  timezone: "UTC"
+  worker_concurrency: 4
+  task_time_limit: 300
+  task_soft_time_limit: 240
+
+# 性能配置
+performance:
+  max_request_size: "10MB"
+  request_timeout: 30
+  keepalive_timeout: 5
+  max_connections: 1000
+  connection_pool_size: 100
+
+# 安全头配置
+security_headers:
+  x_frame_options: "DENY"
+  x_content_type_options: "nosniff"
+  x_xss_protection: "1; mode=block"
+  strict_transport_security: "max-age=31536000; includeSubDomains"
+  content_security_policy: "default-src 'self'"
+
+# 备份配置
+backup:
+  enabled: true
+  schedule: "0 2 * * *"  # 每天凌晨2点
+  retention_days: 30
+  storage_path: "/var/backups/translation"
+  compress: true
+
+# 集群配置
+cluster:
+  enabled: true
+  node_id: "${NODE_ID}"
+  discovery_service: "consul"
+  consul_host: "${CONSUL_HOST}"
+  consul_port: 8500

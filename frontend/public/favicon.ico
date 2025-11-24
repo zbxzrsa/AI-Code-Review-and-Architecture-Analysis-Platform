@@ -1,0 +1,5 @@
+<!-- 创建一个简单的SVG图标作为favicon -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="64" height="64">
+  <rect width="100" height="100" rx="20" fill="#1890ff"/>
+  <text x="50" y="70" font-family="Arial" font-size="60" text-anchor="middle" fill="white">CI</text>
+</svg>

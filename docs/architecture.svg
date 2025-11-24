@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600">
+  <style>
+    text { font-family: Arial, sans-serif; }
+    .title { font-size: 24px; font-weight: bold; }
+    .service { font-size: 14px; font-weight: bold; }
+    .description { font-size: 12px; }
+    .arrow { stroke: #666; stroke-width: 2; marker-end: url(#arrowhead); }
+    .event { font-size: 10px; fill: #666; }
+  </style>
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#666" />
+    </marker>
+  </defs>
+  
+  <!-- Title -->
+  <text x="400" y="40" text-anchor="middle" class="title">CodeInsight 事件驱动微服务架构</text>
+  
+  <!-- API Gateway -->
+  <rect x="350" y="80" width="120" height="60" rx="10" fill="#4285F4" opacity="0.8" />
+  <text x="410" y="110" text-anchor="middle" fill="white" class="service">API网关</text>
+  <text x="410" y="130" text-anchor="middle" fill="white" class="description">认证/路由/负载均衡</text>
+  
+  <!-- Message Queue -->
+  <rect x="350" y="250" width="120" height="60" rx="10" fill="#34A853" opacity="0.8" />
+  <text x="410" y="280" text-anchor="middle" fill="white" class="service">消息队列</text>
+  <text x="410" y="300" text-anchor="middle" fill="white" class="description">Kafka事件总线</text>
+  
+  <!-- Code Parser Service -->
+  <rect x="150" y="350" width="120" height="60" rx="10" fill="#FBBC05" opacity="0.8" />
+  <text x="210" y="380" text-anchor="middle" fill="white" class="service">代码解析服务</text>
+  <text x="210" y="400" text-anchor="middle" fill="white" class="description">AST/CFG/DFG</text>
+  
+  <!-- AI Analysis Service -->
+  <rect x="350" y="350" width="120" height="60" rx="10" fill="#EA4335" opacity="0.8" />
+  <text x="410" y="380" text-anchor="middle" fill="white" class="service">AI分析服务</text>
+  <text x="410" y="400" text-anchor="middle" fill="white" class="description">GNN/缺陷预测</text>
+  
+  <!-- Data Service -->
+  <rect x="550" y="350" width="120" height="60" rx="10" fill="#673AB7" opacity="0.8" />
+  <text x="610" y="380" text-anchor="middle" fill="white" class="service">数据持久化服务</text>
+  <text x="610" y="400" text-anchor="middle" fill="white" class="description">存储/缓存</text>
+  
+  <!-- Service Discovery -->
+  <rect x="150" y="180" width="120" height="60" rx="10" fill="#00ACC1" opacity="0.8" />
+  <text x="210" y="210" text-anchor="middle" fill="white" class="service">服务发现</text>
+  <text x="210" y="230" text-anchor="middle" fill="white" class="description">Consul</text>
+  
+  <!-- Monitoring -->
+  <rect x="550" y="180" width="120" height="60" rx="10" fill="#FF6D00" opacity="0.8" />
+  <text x="610" y="210" text-anchor="middle" fill="white" class="service">监控系统</text>
+  <text x="610" y="230" text-anchor="middle" fill="white" class="description">Prometheus</text>
+  
+  <!-- Databases -->
+  <rect x="350" y="480" width="120" height="60" rx="10" fill="#9E9E9E" opacity="0.8" />
+  <text x="410" y="510" text-anchor="middle" fill="white" class="service">数据存储</text>
+  <text x="410" y="530" text-anchor="middle" fill="white" class="description">PostgreSQL/Neo4j</text>
+  
+  <!-- Connections -->
+  <!-- API Gateway to Message Queue -->
+  <line x1="410" y1="140" x2="410" y2="250" class="arrow" />
+  <text x="420" y="200" class="event">code.submitted</text>
+  
+  <!-- Message Queue to Services -->
+  <line x1="350" y1="280" x2="270" y2="350" class="arrow" />
+  <line x1="410" y1="310" x2="410" y2="350" class="arrow" />
+  <line x1="470" y1="280" x2="550" y2="350" class="arrow" />
+  
+  <!-- Services to Message Queue -->
+  <line x1="270" y1="350" x2="350" y2="280" class="arrow" stroke-dasharray="5,5" />
+  <text x="290" y="320" class="event">code.parsed</text>
+  
+  <line x1="410" y1="350" x2="410" y2="310" class="arrow" stroke-dasharray="5,5" />
+  <text x="420" y="330" class="event">analysis.completed</text>
+  
+  <!-- Data Service to Database -->
+  <line x1="410" y1="410" x2="410" y2="480" class="arrow" />
+  
+  <!-- Service Discovery Connections -->
+  <line x1="210" y1="240" x2="210" y2="350" class="arrow" stroke-dasharray="3,3" />
+  <line x1="210" y1="210" x2="350" y2="110" class="arrow" stroke-dasharray="3,3" />
+  <line x1="270" y1="210" x2="350" y2="250" class="arrow" stroke-dasharray="3,3" />
+  
+  <!-- Monitoring Connections -->
+  <line x1="550" y1="210" x2="470" y2="110" class="arrow" stroke-dasharray="3,3" />
+  <line x1="550" y1="210" x2="470" y2="250" class="arrow" stroke-dasharray="3,3" />
+  <line x1="550" y1="210" x2="270" y2="350" class="arrow" stroke-dasharray="3,3" />
+  <line x1="550" y1="210" x2="410" y2="350" class="arrow" stroke-dasharray="3,3" />
+  <line x1="550" y1="210" x2="550" y2="350" class="arrow" stroke-dasharray="3,3" />
+</svg>

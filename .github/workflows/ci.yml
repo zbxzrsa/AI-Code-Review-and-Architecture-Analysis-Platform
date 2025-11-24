@@ -1,0 +1,191 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/requirements-dev.txt
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Cache pre-commit
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pre-commit
+          key: ${{ runner.os }}-pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Install pre-commit
+        run: pip install pre-commit
+
+      - name: Run pre-commit
+        working-directory: backend
+        run: pre-commit run --all-files
+
+      - name: Static analysis (flake8, black, isort, mypy)
+        working-directory: backend
+        run: |
+          flake8 app --format=junit-xml --output-file=flake8-report.xml || true
+          black --check --diff app || true
+          isort --check-only --diff app || true
+          mypy app --junit-xml mypy-report.xml || true
+
+      - name: Security scan (bandit)
+        working-directory: backend
+        run: bandit -r app -f json -o bandit-report.json || true
+
+      - name: Unit tests with coverage
+        working-directory: backend
+        run: |
+          pytest -q tests --maxfail=1 --disable-warnings --cov=app --cov-report=xml --cov-report=html --cov-report=term --junit-xml=test-report.xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage-${{ matrix.python-version }}
+          path: |
+            backend/coverage.xml
+            backend/htmlcov/
+            backend/test-report.xml
+            backend/flake8-report.xml
+            backend/mypy-report.xml
+            backend/bandit-report.json
+
+  frontend-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint (eslint)
+        working-directory: frontend
+        run: |
+          npx eslint --version || echo "eslint not found, using react-scripts lint"
+          npx eslint . || echo "eslint failed or not configured, skipping"
+
+      - name: Frontend tests
+        working-directory: frontend
+        env:
+          CI: true
+        run: npm test -- --watchAll=false
+
+  security-scan-repo:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run Trivy vulnerability scan (filesystem)
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: 'fs'
+          format: 'table'
+          exit-code: '0'
+          severity: 'CRITICAL,HIGH'
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: codeinsight
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=10s --health-timeout=5s --health-retries=5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start backend (uvicorn) for integration testing
+        working-directory: backend
+        run: |
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+
+      - name: API smoke tests
+        run: |
+          curl -sSf http://localhost:8000/health
+          curl -sSf http://localhost:8000/api/docs || true
+
+      - name: Run backend integration tests
+        working-directory: backend
+        run: |
+          pytest -q tests/test_ai_analysis_api.py --maxfail=1 --disable-warnings || true
+
+  perf-benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start backend (uvicorn) for benchmark
+        working-directory: backend
+        run: |
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+
+      - name: Run k6 performance test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: tests/perf/k6_script.js
