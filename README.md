@@ -48,14 +48,52 @@ cd intelligent-code-review-and-architecture-analysis-platform
 
 ### 2. One-command launch (recommended)
 
-Use the provided scripts or Ansible/Terraform automation to spin up the entire stack with diagnostics, health checks, and shortcut creation.
+The platform now includes a cross-platform one-command runner that builds and starts everything with health checks.
+
+#### Prerequisites
+- **Docker** 20.10+ and Docker Compose 2.0+
+- **Node.js** 18+ (for the one-command runner)
+- **Git** for cloning the repository
+
+#### Quick Start
 
 ```bash
-# Windows PowerShell
-./assets/install/create-shortcut.ps1
+# Clone the repository
+git clone <repository-url>
+cd ai-code-review-and-architecture-analysis-platform
 
-# macOS / Linux
-docker compose up -d
+# One-command build and start (cross-platform)
+npm run build
+```
+
+This single command will:
+- 🏗️ Build all Docker images
+- 🚀 Start all services with health checks
+- 📊 Verify service availability
+- 🎉 Display success banner with access URLs
+
+#### Alternative Commands
+
+```bash
+npm run start      # Start services (if already built)
+npm run down       # Stop and remove all services
+npm run logs       # Show service logs
+npm run health     # Check service health
+npm run doctor     # System diagnostics
+npm run clean      # Clean up Docker resources
+```
+
+#### Environment Profiles
+
+```bash
+# Development (default)
+npm run build
+
+# Production
+PROFILE=prod npm run build
+
+# Staging
+PROFILE=staging npm run build
 ```
 
 ### 3. Manual dev setup

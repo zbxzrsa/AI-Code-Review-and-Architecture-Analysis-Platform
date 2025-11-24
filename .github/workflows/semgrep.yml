@@ -1,0 +1,81 @@
+# Semgrep Security Scanning Integration
+name: Semgrep Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+
+jobs:
+  semgrep:
+    name: Semgrep Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Semgrep
+        id: semgrep
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/cwe-top-25
+            p/owasp-top-ten
+            p/xss
+            p/sql-injection
+            p/command-injection
+            p/path-traversal
+            p/hardcoded-secrets
+            p/unsafe-deserialization
+            p/cryptographic-issues
+            p/weak-cryptography
+          publishToken: ${{ secrets.SEMGREP_APP_TOKEN }}
+          generateSarif: true
+          severity: ERROR
+          
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: ${{ steps.semgrep.outputs.sarif }}
+          
+      - name: Comment PR with findings
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const fs = require('fs');
+            const path = './semgrep.sarif';
+            
+            if (fs.existsSync(path)) {
+              const sarif = JSON.parse(fs.readFileSync(path, 'utf8'));
+              const findings = sarif.runs[0].results || [];
+              
+              if (findings.length > 0) {
+                const comment = `## 🔍 Semgrep Security Scan Results
+                
+                Found **${findings.length}** security issues:
+                
+                ${findings.map(f => 
+                  `### ${f.properties.severity} - ${f.message}
+                  **File:** \`${f.locations[0].physicalLocation.artifactLocation.uri}:${f.locations[0].physicalLocation.region.startLine}\`
+                  **Rule:** \`${f.ruleId}\`
+                  `
+                ).join('\n')}
+                
+                Please review and fix these security issues before merging.
+                `;
+                
+                github.rest.issues.createComment({
+                  issue_number: context.issue.number,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  body: comment
+                });
+              }
+            }

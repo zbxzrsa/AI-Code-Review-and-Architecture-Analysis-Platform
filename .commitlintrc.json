@@ -1,0 +1,89 @@
+{
+  "extends": ["@commitlint/config-conventional"],
+  "rules": {
+    "type-enum": [
+      2,
+      "always",
+      [
+        "feat",     // New feature
+        "fix",      // Bug fix
+        "docs",     // Documentation changes
+        "style",    // Code style changes (formatting, etc.)
+        "refactor", // Code refactoring
+        "perf",     // Performance improvements
+        "test",     // Test additions or changes
+        "chore",    // Maintenance tasks
+        "ci",       // CI/CD changes
+        "build",    // Build system changes
+        "revert",   // Revert previous commit
+        "security", // Security-related changes
+        "deps"      // Dependency updates
+      ]
+    ],
+    "type-case": [2, "always", "lower-case"],
+    "type-empty": [2, "never"],
+    "scope-case": [2, "always", "lower-case"],
+    "subject-case": [2, "never", ["sentence-case", "start-case", "pascal-case", "upper-case"]],
+    "subject-empty": [2, "never"],
+    "subject-full-stop": [2, "never", "."],
+    "header-max-length": [2, "always", 72],
+    "body-leading-blank": [2, "always"],
+    "body-max-line-length": [2, "always", 100],
+    "footer-leading-blank": [2, "always"],
+    "footer-max-line-length": [2, "always", 100]
+  },
+  "prompt": {
+    "questions": {
+      "type": {
+        "description": "Select the type of change that you're committing",
+        "enum": [
+          {"value": "feat", "description": "A new feature"},
+          {"value": "fix", "description": "A bug fix"},
+          {"value": "docs", "description": "Documentation only changes"},
+          {"value": "style", "description": "Changes that do not affect the meaning of the code"},
+          {"value": "refactor", "description": "A code change that neither fixes a bug nor adds a feature"},
+          {"value": "perf", "description": "A code change that improves performance"},
+          {"value": "test", "description": "Adding missing tests or correcting existing tests"},
+          {"value": "chore", "description": "Maintenance tasks, dependency updates, etc."},
+          {"value": "ci", "description": "Changes to our CI configuration files and scripts"},
+          {"value": "build", "description": "Changes that affect the build system or external dependencies"},
+          {"value": "revert", "description": "Reverts a previous commit"},
+          {"value": "security", "description": "Security-related changes"},
+          {"value": "deps", "description": "Dependency updates"}
+        ]
+      },
+      "scope": {
+        "description": "What is the scope of this change? (e.g. component or file name)",
+        "enum": [
+          "api", "auth", "backend", "frontend", "database", "cache", "ai", "security",
+          "testing", "docs", "ci", "docker", "config", "monitoring", "performance"
+        ]
+      },
+      "subject": {
+        "description": "Write a short, imperative tense description of the change",
+        "type": "input",
+        "filter": "(^.{1,72}$)"
+      },
+      "body": {
+        "description": "Provide a longer description of the change",
+        "type": "input"
+      },
+      "isBreaking": {
+        "description": "Are there any breaking changes?",
+        "type": "confirm"
+      },
+      "breakingBody": {
+        "description": "A BREAKING CHANGE commit requires a body. Please describe the breaking changes",
+        "type": "input"
+      },
+      "isIssueAffected": {
+        "description": "Does this change affect any open issues?",
+        "type": "confirm"
+      },
+      "issuesBody": {
+        "description": "If issues are closed, the commit requires a body. Please enter the issue numbers",
+        "type": "input"
+      }
+    }
+  }
+}

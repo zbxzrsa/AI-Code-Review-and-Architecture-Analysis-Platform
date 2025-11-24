@@ -1,25 +1,43 @@
 """
-安全模块 - 提供后端安全功能
-包括认证、授权、数据加密和安全配置
+Enhanced security module for AI Code Review Platform.
+Provides authentication, authorization, encryption, and security configurations.
 """
-import os
+import time
+import hashlib
 import secrets
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional, Union, List
 
 import jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
+from fastapi import FastAPI, Request, Response, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.httpsredirect import HTTPSRedirectMiddleware
+import structlog
 
 from app.core.config import settings
 from app.models.user import User
 
-# 密码哈希上下文
+logger = structlog.get_logger(__name__)
+
+# Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# JWT相关配置
+# JWT configuration
 ALGORITHM = "HS256"
 access_token_jwt_subject = "access"
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address)
+security = HTTPBearer(auto_error=False)
 
 
 def create_access_token(
