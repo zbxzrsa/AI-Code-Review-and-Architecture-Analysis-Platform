@@ -1,8 +1,9 @@
 import os
 from celery import Celery
 
-BROKER = os.getenv("CELERY_BROKER_URL", "pyamqp://guest@localhost//")
-RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "rpc://")
+# Use Redis as broker and backend for simplicity
+BROKER = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
+RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://redis:6379/0")
 
 celery_app = Celery("app", broker=BROKER, backend=RESULT_BACKEND)
 

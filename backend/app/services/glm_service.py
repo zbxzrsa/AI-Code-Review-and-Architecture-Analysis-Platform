@@ -262,5 +262,5 @@ def calculate_user_age(birth_year):
     return current_year - birth_year
 '''
     
-    review = await glm_service.review_code(test_code, "python")
+    review = glm_service.review_code(test_code, "python")
     print("Code review:", json.dumps(review, indent=2))

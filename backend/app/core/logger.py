@@ -85,6 +85,16 @@ class Logger:
             extra: 额外的结构化数据
         """
         self._log(self.logger.critical, msg, extra)
+
+    def exception(self, msg: str, extra: Optional[Dict[str, Any]] = None) -> None:
+        """
+        异常级别日志
+        
+        Args:
+            msg: 日志消息
+            extra: 额外的结构化数据
+        """
+        self._log(self.logger.exception, msg, extra)
     
     def _log(self, log_func, msg: str, extra: Optional[Dict[str, Any]] = None) -> None:
         """
@@ -113,3 +123,6 @@ def get_logger(name: str) -> Logger:
         Logger: 日志器实例
     """
     return Logger(name)
+
+# 默认日志器实例
+logger = get_logger(__name__)

@@ -1,0 +1,554 @@
+name: Enhanced CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+  release:
+    types: [published]
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}/backend
+  FRONTEND_IMAGE: ${{ github.repository }}/frontend
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Code Quality and Security Checks
+  code-quality:
+    name: Code Quality & Security
+    runs-on: ubuntu-latest
+    outputs:
+      backend-quality: ${{ steps.backend-quality.outputs.result }}
+      frontend-quality: ${{ steps.frontend-quality.outputs.result }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/pyproject.toml
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Backend code quality checks
+        id: backend-quality
+        working-directory: backend
+        run: |
+          echo "Running backend quality checks..."
+
+          # Linting
+          echo "Running ruff..."
+          ruff check . --output-format=json > ruff-report.json || echo "ruff issues found"
+
+          # Formatting check
+          echo "Checking black formatting..."
+          black --check --diff app > black-report.txt || echo "black formatting issues found"
+
+          # Import sorting
+          echo "Checking isort..."
+          isort --check-only --diff app > isort-report.txt || echo "isort issues found"
+
+          # Type checking
+          echo "Running mypy..."
+          mypy app --junit-xml mypy-report.xml || echo "mypy issues found"
+
+          # Security scan
+          echo "Running bandit security scan..."
+          bandit -r app -f json -o bandit-report.json || echo "bandit issues found"
+
+          # Dependency security check
+          echo "Checking dependency security..."
+          safety check --json --output safety-report.json || echo "safety issues found"
+
+          echo "result=success" >> $GITHUB_OUTPUT
+
+      - name: Frontend code quality checks
+        id: frontend-quality
+        working-directory: frontend
+        run: |
+          echo "Running frontend quality checks..."
+
+          # ESLint
+          echo "Running ESLint..."
+          npx eslint . --format=json > eslint-report.json || echo "ESLint issues found"
+
+          # Prettier check
+          echo "Checking Prettier formatting..."
+          npx prettier --check . > prettier-report.txt || echo "Prettier issues found"
+
+          # TypeScript check
+          echo "Running TypeScript compiler..."
+          npx tsc --noEmit --pretty false > typescript-report.txt || echo "TypeScript issues found"
+
+          # Dependency audit
+          echo "Running npm audit..."
+          npm audit --audit-level=moderate --json > npm-audit.json || echo "npm audit issues found"
+
+          echo "result=success" >> $GITHUB_OUTPUT
+
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            backend/ruff-report.json
+            backend/black-report.txt
+            backend/isort-report.txt
+            backend/mypy-report.xml
+            backend/bandit-report.json
+            backend/safety-report.json
+            frontend/eslint-report.json
+            frontend/prettier-report.txt
+            frontend/typescript-report.txt
+            frontend/npm-audit.json
+          retention-days: 30
+
+  # Backend Testing
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.11', '3.12']
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test_user
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U test_user" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping" 
+          --health-interval=10s 
+          --health-timeout=5s 
+          --health-retries=5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/pyproject.toml
+
+      - name: Install dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run database migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
+        run: |
+          alembic upgrade head
+
+      - name: Run unit tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
+        run: |
+          pytest -q \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term \
+            --junit-xml=test-report.xml \
+            --maxfail=1 \
+            --disable-warnings \
+            tests/
+
+      - name: Run integration tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://test_user:test_password@localhost:5432/test_db
+          REDIS_URL: redis://localhost:6379/0
+          TESTING: true
+        run: |
+          pytest -q \
+            --maxfail=1 \
+            --disable-warnings \
+            tests/integration/ || echo "Integration tests completed"
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-reports-${{ matrix.python-version }}
+          path: |
+            backend/coverage.xml
+            backend/htmlcov/
+            backend/test-report.xml
+          retention-days: 30
+
+  # Frontend Testing
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: frontend
+        env:
+          CI: true
+          NODE_ENV: test
+        run: |
+          npm test -- --coverage \
+            --watchAll=false \
+            --reporters=default \
+            --reporters=jest-junit \
+            --coverageReporters=text \
+            --coverageReporters=clover \
+            --coverageReporters=html
+
+      - name: Run component tests
+        working-directory: frontend
+        run: |
+          npm run test:components || echo "Component tests completed"
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-test-reports
+          path: |
+            frontend/coverage/
+            frontend/junit.xml
+          retention-days: 30
+
+  # E2E Testing
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start services
+        run: |
+          docker-compose -f docker-compose.enhanced.yml up -d
+          sleep 60
+
+      - name: Wait for services to be ready
+        run: |
+          timeout 300 bash -c 'until curl -f http://localhost:8000/health; do sleep 5; done'
+          timeout 300 bash -c 'until curl -f http://localhost:3000; do sleep 5; done'
+
+      - name: Setup Node.js for E2E tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Playwright
+        run: |
+          npm install -g @playwright/test
+          npx playwright install --with-deps
+
+      - name: Run E2E tests
+        run: |
+          npx playwright test tests/e2e/ --reporter=html
+
+      - name: Upload E2E reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-test-reports
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose -f docker-compose.enhanced.yml down -v
+
+  # Security Scanning
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          languages: python, javascript
+
+  # Build and Push Docker Images
+  build-and-push:
+    name: Build & Push Images
+    runs-on: ubuntu-latest
+    needs: [code-quality, backend-tests, frontend-tests, e2e-tests, security-scan]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (backend)
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.enhanced
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+      - name: Extract metadata (frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./docker/frontend/Dockerfile.enhanced
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  # Deployment
+  deploy:
+    name: Deploy to ${{ github.event.inputs.environment || 'staging' }}
+    runs-on: ubuntu-latest
+    needs: [build-and-push]
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'release'
+    environment:
+      name: ${{ github.event.inputs.environment || 'staging' }}
+      url: ${{ github.event.inputs.environment == 'production' && 'https://ai-code-review.example.com' || 'https://staging.ai-code-review.example.com' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Configure kubectl
+        run: |
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+          export KUBECONFIG=kubeconfig
+
+      - name: Deploy to Kubernetes
+        run: |
+          export KUBECONFIG=kubeconfig
+
+          # Set environment variables
+          ENVIRONMENT=${{ github.event.inputs.environment || 'staging' }}
+          BACKEND_IMAGE=${{ needs.build-and-push.outputs.backend-image }}
+          FRONTEND_IMAGE=${{ needs.build-and-push.outputs.frontend-image }}
+
+          # Apply namespace
+          kubectl apply -f infra/k8s/namespace.yaml
+
+          # Apply secrets
+          envsubst < infra/k8s/secrets.yaml | kubectl apply -f -
+
+          # Apply configurations
+          envsubst < infra/k8s/configmap.yaml | kubectl apply -f -
+
+          # Deploy applications
+          envsubst < infra/k8s/backend-deployment.yaml | kubectl apply -f -
+          envsubst < infra/k8s/frontend-deployment.yaml | kubectl apply -f -
+
+          # Apply services and ingress
+          kubectl apply -f infra/k8s/services.yaml
+          kubectl apply -f infra/k8s/ingress.yaml
+
+          # Wait for rollout
+          kubectl rollout status deployment/backend -n $ENVIRONMENT --timeout=300s
+          kubectl rollout status deployment/frontend -n $ENVIRONMENT --timeout=300s
+
+      - name: Verify deployment
+        run: |
+          export KUBECONFIG=kubeconfig
+          ENVIRONMENT=${{ github.event.inputs.environment || 'staging' }}
+
+          # Check pod status
+          kubectl get pods -n $ENVIRONMENT
+
+          # Check services
+          kubectl get services -n $ENVIRONMENT
+
+          # Health check
+          kubectl wait --for=condition=ready pod -l app=backend -n $ENVIRONMENT --timeout=300s
+          kubectl wait --for=condition=ready pod -l app=frontend -n $ENVIRONMENT --timeout=300s
+
+      - name: Notify deployment
+        uses: 8398a7/action-slack@v3
+        if: always()
+        with:
+          status: ${{ job.status }}
+          channel: '#deployments'
+          text: |
+            Deployment to ${{ github.event.inputs.environment || 'staging' }} ${{ job.status }}
+            Repository: ${{ github.repository }}
+            Commit: ${{ github.sha }}
+            Actor: ${{ github.actor }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # Performance Testing
+  performance-test:
+    name: Performance Test
+    runs-on: ubuntu-latest
+    needs: [deploy]
+    if: github.event.inputs.environment == 'staging'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run performance tests
+        run: |
+          k6 run --out json=performance-results.json tests/perf/k6_script.js
+        env:
+          BASE_URL: https://staging.ai-code-review.example.com
+
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-results
+          path: performance-results.json
+          retention-days: 30

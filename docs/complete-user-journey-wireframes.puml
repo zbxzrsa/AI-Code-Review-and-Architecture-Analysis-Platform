@@ -1,0 +1,513 @@
+@startuml AI Code Review Platform - Complete User Journey & Wireframes
+!theme plain
+skinparam monochrome true
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam rectangle {
+  BorderColor #333
+  BackgroundColor #f0f0f0
+}
+skinparam actor {
+  BorderColor #333
+  BackgroundColor #e0e0e0
+}
+
+title AI Code Review Platform - Complete User Journey & Wireframes
+
+' ===== USER JOURNEY OVERVIEW =====
+rectangle "User Journey Overview" {
+  actor "Developer" as Dev
+  actor "Team Lead" as Lead
+  actor "Admin" as Admin
+  
+  rectangle "Onboarding" {
+    Dev --> (Sign Up)
+    Dev --> (Connect GitHub)
+    Dev --> (Configure Preferences)
+    Lead --> (Setup Team)
+    Admin --> (Configure System)
+  }
+  
+  rectangle "Daily Workflow" {
+    Dev --> (Analyze Code)
+    Dev --> (Review Suggestions)
+    Dev --> (Implement Changes)
+    Lead --> (Monitor Progress)
+    Lead --> (Review Reports)
+  }
+  
+  rectangle "Collaboration" {
+    Dev --> (Share Insights)
+    Lead --> (Approve Changes)
+    Admin --> (Manage Access)
+  }
+  
+  rectangle "Monitoring" {
+    Lead --> (View Dashboard)
+    Admin --> (System Health)
+    Dev --> (Personal Analytics)
+  }
+}
+
+' ===== DEVELOPER USER JOURNEY =====
+rectangle "Developer User Journey" {
+  actor "Developer" as Dev2
+  
+  rectangle "Discovery & Setup" {
+    Dev2 --> (Discover Platform)
+    note right: Through documentation\nor team invitation
+    
+    Dev2 --> (Create Account)
+    note right: Email/SSO registration
+    
+    Dev2 --> (Connect GitHub)
+    note right: OAuth integration\nSelect repositories
+    
+    Dev2 --> (Configure Analysis)
+    note right: Set preferences\nChoose analysis types
+  }
+  
+  rectangle "First Analysis" {
+    Dev2 --> (Select Repository)
+    note right: Browse connected repos\nSearch functionality
+    
+    Dev2 --> (Run Analysis)
+    note right: Full repository scan\nAI-powered analysis
+    
+    Dev2 --> (Review Results)
+    note right: Quality metrics\nSecurity findings\nArchitecture insights
+  }
+  
+  rectangle "Iterative Improvement" {
+    Dev2 --> (Focus on Issues)
+    note right: Prioritize by severity\nFilter by category
+    
+    Dev2 --> (Apply Suggestions)
+    note right: Code refactoring\nSecurity fixes\nPerformance improvements
+    
+    Dev2 --> (Verify Changes)
+    note right: Re-analyze code\nCompare before/after
+  }
+  
+  rectangle "Continuous Integration" {
+    Dev2 --> (Setup CI/CD)
+    note right: GitHub Actions integration\nAutomated analysis
+    
+    Dev2 --> (Monitor PRs)
+    note right: Pull request reviews\nAutomated suggestions
+    
+    Dev2 --> (Track Progress)
+    note right: Quality trends\nTeam metrics
+  }
+}
+
+' ===== TEAM LEAD USER JOURNEY =====
+rectangle "Team Lead User Journey" {
+  actor "Team Lead" as Lead2
+  
+  rectangle "Team Setup" {
+    Lead2 --> (Create Team)
+    note right: Define team structure\nSet team policies
+    
+    Lead2 --> (Invite Members)
+    note right: Send invitations\nAssign roles\nSet permissions
+    
+    Lead2 --> (Configure Standards)
+    note right: Quality thresholds\nCoding standards\nReview policies
+  }
+  
+  rectangle "Project Management" {
+    Lead2 --> (Create Projects)
+    note right: Define project scope\nSet milestones\nAssign repositories
+    
+    Lead2 --> (Monitor Progress)
+    note right: Team dashboards\nProgress tracking\nQuality metrics
+    
+    Lead2 --> (Review Reports)
+    note right: Weekly summaries\nTrend analysis\nPerformance reports
+  }
+  
+  rectangle "Quality Oversight" {
+    Lead2 --> (Set Baselines)
+    note right: Quality KPIs\nSecurity standards\nPerformance benchmarks
+    
+    Lead2 --> (Review Findings)
+    note right: Critical issues\nSecurity vulnerabilities\nArchitecture concerns
+    
+    Lead2 --> (Approve Changes)
+    note right: Review suggestions\nApprove implementations\nTrack resolutions
+  }
+  
+  rectangle "Strategic Planning" {
+    Lead2 --> (Analyze Trends)
+    note right: Quality evolution\nTeam performance\nTechnical debt
+    
+    Lead2 --> (Plan Improvements)
+    note right: Training needs\nTool upgrades\nProcess optimization
+    
+    Lead2 --> (Report to Management)
+    note right: Executive summaries\nROI analysis\nStrategic recommendations
+  }
+}
+
+' ===== MAIN DASHBOARD WIREFRAME =====
+rectangle "Main Dashboard Wireframe" {
+  rectangle "Header" {
+    rectangle "Logo" as Logo
+    rectangle "Search Bar" as Search
+    rectangle "User Menu" as UserMenu
+    rectangle "Notifications" as Notifications
+  }
+  
+  rectangle "Navigation Sidebar" {
+    rectangle "Dashboard" as NavDash
+    rectangle "Projects" as NavProjects
+    rectangle "Analysis" as NavAnalysis
+    rectangle "Reports" as NavReports
+    rectangle "Settings" as NavSettings
+  }
+  
+  rectangle "Main Content Area" {
+    rectangle "Welcome Section" {
+      rectangle "Welcome Message" as Welcome
+      rectangle "Quick Actions" as QuickActions
+    }
+    
+    rectangle "Metrics Overview" {
+      rectangle "Code Quality Score" as QualityScore
+      rectangle "Security Issues" as SecurityIssues
+      rectangle "Performance Metrics" as PerfMetrics
+      rectangle "Team Activity" as TeamActivity
+    }
+    
+    rectangle "Recent Activity" {
+      rectangle "Latest Analyses" as LatestAnalyses
+      rectangle "Recent PRs" as RecentPRs
+      rectangle "Team Updates" as TeamUpdates
+    }
+    
+    rectangle "Quick Insights" {
+      rectangle "Trending Issues" as TrendingIssues
+      rectangle "Recommendations" as Recommendations
+    }
+  }
+}
+
+' ===== CODE ANALYSIS WIREFRAME =====
+rectangle "Code Analysis Interface Wireframe" {
+  rectangle "Header" {
+    rectangle "Breadcrumbs" as Breadcrumbs
+    rectangle "Analysis Controls" as AnalysisControls
+    rectangle "Export Options" as ExportOptions
+  }
+  
+  rectangle "Left Panel" {
+    rectangle "Repository Tree" as RepoTree
+    rectangle "Filter Options" as Filters {
+      rectangle "File Types" as FileTypes
+      rectangle "Severity Levels" as SeverityLevels
+      rectangle "Issue Categories" as IssueCategories
+    }
+  }
+  
+  rectangle "Main Content" {
+    rectangle "Code Viewer" {
+      rectangle "File Tabs" as FileTabs
+      rectangle "Code Editor" as CodeEditor
+      rectangle "Issue Annotations" as Annotations
+    }
+    
+    rectangle "Analysis Results" {
+      rectangle "Issues List" as IssuesList {
+        rectangle "Issue Item" as IssueItem
+      }
+      rectangle "Issue Details" as IssueDetails {
+        rectangle "Description" as IssueDesc
+        rectangle "Suggested Fix" as SuggestedFix
+        rectangle "AI Explanation" as AIExplanation
+      }
+    }
+  }
+  
+  rectangle "Right Panel" {
+    rectangle "Quality Metrics" as QualityMetrics
+    rectangle "Security Score" as SecurityScore
+    rectangle "Performance Impact" as PerfImpact
+    rectangle "Related Issues" as RelatedIssues
+  }
+  
+  rectangle "Bottom Panel" {
+    rectangle "AI Chat Assistant" as AIChat
+    rectangle "Action Buttons" as ActionButtons
+  }
+}
+
+' ===== PROJECT MANAGEMENT WIREFRAME =====
+rectangle "Project Management Interface Wireframe" {
+  rectangle "Header" {
+    rectangle "Project Title" as ProjectTitle
+    rectangle "Project Actions" as ProjectActions
+    rectangle "Team Members" as TeamMembers
+  }
+  
+  rectangle "Navigation Tabs" {
+    rectangle "Overview" as TabOverview
+    rectangle "Repositories" as TabRepos
+    rectangle "Team" as TabTeam
+    rectangle "Settings" as TabSettings
+    rectangle "Reports" as TabReports
+  }
+  
+  rectangle "Overview Tab Content" {
+    rectangle "Project Statistics" {
+      rectangle "Total Repositories" as TotalRepos
+      rectangle "Active Contributors" as ActiveContributors
+      rectangle "Code Quality Trend" as QualityTrend
+      rectangle "Security Status" as SecurityStatus
+    }
+    
+    rectangle "Recent Activity" {
+      rectangle "Activity Timeline" as ActivityTimeline
+      rectangle "Latest Analyses" as LatestAnalyses2
+    }
+    
+    rectangle "Quick Actions" {
+      rectangle "Add Repository" as AddRepo
+      rectangle "Run Analysis" as RunAnalysis
+      rectangle "Generate Report" as GenerateReport
+    }
+  }
+  
+  rectangle "Repositories Tab Content" {
+    rectangle "Repository List" {
+      rectangle "Repo Card" as RepoCard {
+        rectangle "Repo Name" as RepoName
+        rectangle "Last Analysis" as LastAnalysis
+        rectangle "Quality Score" as RepoQuality
+        rectangle "Actions" as RepoActions
+      }
+    }
+    
+    rectangle "Repository Details" {
+      rectangle "Branch Information" as BranchInfo
+      rectangle "Analysis History" as AnalysisHistory
+      rectangle "Contributor Stats" as ContributorStats
+    }
+  }
+}
+
+' ===== REPORTS DASHBOARD WIREFRAME =====
+rectangle "Reports Dashboard Wireframe" {
+  rectangle "Header" {
+    rectangle "Report Title" as ReportTitle
+    rectangle "Date Range Selector" as DateRange
+    rectangle "Export Options" as ExportOptions2
+    rectangle "Share Options" as ShareOptions
+  }
+  
+  rectangle "Filter Sidebar" {
+    rectangle "Project Filter" as ProjectFilter
+    rectangle "Team Filter" as TeamFilter
+    rectangle "Metric Filter" as MetricFilter
+    rectangle "Severity Filter" as SeverityFilter
+  }
+  
+  rectangle "Main Content" {
+    rectangle "Executive Summary" {
+      rectangle "Key Metrics" as KeyMetrics
+      rectangle "Trend Overview" as TrendOverview
+      rectangle "Health Score" as HealthScore
+    }
+    
+    rectangle "Detailed Charts" {
+      rectangle "Quality Trends Chart" as QualityChart
+      rectangle "Security Issues Chart" as SecurityChart
+      rectangle "Performance Metrics Chart" as PerfChart
+      rectangle "Team Productivity Chart" as TeamChart
+    }
+    
+    rectangle "Detailed Tables" {
+      rectangle "Top Issues Table" as TopIssues
+      rectangle "Contributor Performance Table" as ContributorTable
+      rectangle "Repository Analysis Table" as RepoTable
+    }
+  }
+  
+  rectangle "Bottom Panel" {
+    rectangle "AI Insights" as AIInsights
+    rectangle "Recommendations" as Recommendations2
+    rectangle "Action Items" as ActionItems
+  }
+}
+
+' ===== SETTINGS WIREFRAME =====
+rectangle "Settings & Configuration Wireframe" {
+  rectangle "Header" {
+    rectangle "Settings Title" as SettingsTitle
+    rectangle "Save/Cancel" as SaveCancel
+  }
+  
+  rectangle "Settings Navigation" {
+    rectangle "Profile" as NavProfile
+    rectangle "Preferences" as NavPreferences
+    rectangle "Integrations" as NavIntegrations
+    rectangle "Security" as NavSecurity
+    rectangle "Notifications" as NavNotifications
+    rectangle "Team" as NavTeam
+  }
+  
+  rectangle "Profile Settings" {
+    rectangle "User Information" {
+      rectangle "Profile Picture" as ProfilePic
+      rectangle "Name Field" as NameField
+      rectangle "Email Field" as EmailField
+      rectangle "Bio Field" as BioField
+    }
+    
+    rectangle "Developer Settings" {
+      rectangle "IDE Preferences" as IDEPrefs
+      rectangle "Code Style" as CodeStyle
+      rectangle "Analysis Preferences" as AnalysisPrefs
+    }
+  }
+  
+  rectangle "Integration Settings" {
+    rectangle "GitHub Integration" {
+      rectangle "Connected Accounts" as ConnectedAccounts
+      rectangle "Repository Permissions" as RepoPermissions
+      rectangle "Webhook Settings" as WebhookSettings
+    }
+    
+    rectangle "AI Provider Settings" {
+      rectangle "OpenAI Config" as OpenAIConfig
+      rectangle "Anthropic Config" as AnthropicConfig
+      rectangle "Custom Models" as CustomModels
+    }
+    
+    rectangle "CI/CD Integration" {
+      rectangle "GitHub Actions" as GitHubActions
+      rectangle "Jenkins" as Jenkins
+      rectangle "GitLab CI" as GitLabCI
+    }
+  }
+}
+
+' ===== MOBILE APP WIREFRAME =====
+rectangle "Mobile App Wireframe" {
+  rectangle "Mobile Screen" {
+    rectangle "App Header" {
+      rectangle "Menu Button" as MenuBtn
+      rectangle "App Title" as AppTitle
+      rectangle "Notifications" as MobileNotifications
+    }
+    
+    rectangle "Bottom Navigation" {
+      rectangle "Dashboard" as NavDash2
+      rectangle "Projects" as NavProjects2
+      rectangle "Analysis" as NavAnalysis2
+      rectangle "Reports" as NavReports2
+      rectangle "Profile" as NavProfile2
+    }
+    
+    rectangle "Main Content Area" {
+      rectangle "Dashboard View" {
+        rectangle "Quick Stats" as QuickStats
+        rectangle "Recent Activity" as RecentActivity2
+        rectangle "Quick Actions" as QuickActions2
+      }
+      
+      rectangle "Projects View" {
+        rectangle "Project List" as ProjectList
+        rectangle "Project Card" as ProjectCard2
+        rectangle "Add Project" as AddProject2
+      }
+      
+      rectangle "Analysis View" {
+        rectangle "Repository Selector" as RepoSelector
+        rectangle "Analysis Progress" as AnalysisProgress
+        rectangle "Results Summary" as ResultsSummary
+      }
+      
+      rectangle "Reports View" {
+        rectangle "Report Types" as ReportTypes
+        rectangle "Report Preview" as ReportPreview
+        rectangle "Share Options" as ShareOptions2
+      }
+    }
+    
+    rectangle "Floating Action Button" as FAB
+  }
+}
+
+' ===== COMPLETE USER FLOW =====
+rectangle "Complete User Flow" {
+  actor "Developer" as Dev3
+  actor "Team Lead" as Lead3
+  actor "Admin" as Admin2
+  
+  rectangle "Authentication" {
+    Dev3 --> (Login)
+    Lead3 --> (Login)
+    Admin2 --> (Login)
+    note right: SSO/Email/2FA
+    
+    Dev3 --> (Onboarding)
+    Lead3 --> (Team Setup)
+    Admin2 --> (System Config)
+  }
+  
+  rectangle "Daily Workflow" {
+    Dev3 --> (Select Repository)
+    note right: Browse connected repos\nSearch functionality
+    
+    Dev3 --> (Configure Analysis)
+    note right: Choose analysis types\nSet parameters\nSelect branches
+    
+    Dev3 --> (Run Analysis)
+    note right: AI-powered scan\nReal-time progress\nBackground processing
+    
+    Dev3 --> (Review Results)
+    note right: Quality metrics\nSecurity findings\nArchitecture insights\nPerformance issues
+  }
+  
+  rectangle "Collaboration" {
+    Dev3 --> (Share Findings)
+    note right: Export reports\nShare with team\nCreate discussions
+    
+    Lead3 --> (Review Team Work)
+    note right: Monitor progress\nReview suggestions\nApprove changes
+    
+    Dev3 --> (Implement Changes)
+    note right: Apply suggestions\nRefactor code\nFix issues
+    
+    Dev3 --> (Verify Improvements)
+    note right: Re-analyze code\nCompare metrics\nValidate fixes
+  }
+  
+  rectangle "Continuous Integration" {
+    Dev3 --> (Setup CI/CD)
+    note right: GitHub Actions\nAutomated analysis\nPR reviews
+    
+    Lead3 --> (Monitor Pipelines)
+    note right: CI/CD status\nQuality gates\nDeployment readiness
+    
+    Dev3 --> (Pull Request Review)
+    note right: Automated suggestions\nManual review\nMerge decisions
+  }
+  
+  rectangle "Monitoring & Reporting" {
+    Lead3 --> (View Dashboard)
+    note right: Team metrics\nQuality trends\nSecurity overview
+    
+    Admin2 --> (System Health)
+    note right: Performance monitoring\nResource usage\nError tracking
+    
+    Lead3 --> (Generate Reports)
+    note right: Weekly summaries\nManagement reports\nCompliance reports
+    
+    Dev3 --> (Personal Analytics)
+    note right: Personal productivity\nCode quality trends\nSkill development
+  }
+}
+
+@enduml

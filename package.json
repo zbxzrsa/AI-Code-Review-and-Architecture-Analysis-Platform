@@ -8,15 +8,8 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "build": "node tools/onecmd.mjs build",
-    "start": "node tools/onecmd.mjs start",
-    "down": "node tools/onecmd.mjs down",
-    "doctor": "node tools/onecmd.mjs doctor",
-    "logs": "node tools/onecmd.mjs logs",
-    "health": "node tools/onecmd.mjs health",
-    "clean": "node tools/onecmd.mjs clean",
-    "dev": "node tools/onecmd.mjs dev",
-    "prod": "node tools/onecmd.mjs prod"
+    "build": "./clean_start.sh",
+    "start": "./clean_start.sh"
   },
   "keywords": [
     "ai",
@@ -29,12 +22,6 @@
   ],
   "author": "Platform Team <platform-team@example.com>",
   "license": "MIT",
-  "devDependencies": {
-    "chalk": "^5.3.0",
-    "ora": "^7.0.1",
-    "inquirer": "^9.2.12",
-    "node-fetch": "^3.3.2"
-  },
   "repository": {
     "type": "git",
     "url": "https://github.com/example/ai-code-review-platform.git"
@@ -43,4 +30,5 @@
     "url": "https://github.com/example/ai-code-review-platform/issues"
   },
   "homepage": "https://github.com/example/ai-code-review-platform#readme"
+  }
 }

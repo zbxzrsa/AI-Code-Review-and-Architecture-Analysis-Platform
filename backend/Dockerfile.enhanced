@@ -1,0 +1,98 @@
+# Enhanced Multi-Stage Backend Dockerfile
+# Stage 1: Dependencies stage
+FROM python:3.11-slim AS dependencies
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpq-dev \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy requirements
+COPY backend/requirements.txt /tmp/requirements.txt
+COPY backend/pyproject.toml /tmp/pyproject.toml
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Stage 2: Build stage (for AI/ML dependencies)
+FROM dependencies AS builder
+
+# Install additional build dependencies for AI/ML
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libhdf5-dev \
+    libblas-dev \
+    liblapack-dev \
+    gfortran \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install PyTorch and other ML dependencies
+RUN pip install --no-cache-dir \
+    torch>=2.1.0 \
+    torchvision>=0.16.0 \
+    torchaudio>=2.1.0 \
+    --index-url https://download.pytorch.org/whl/cpu
+
+# Install graph processing libraries
+RUN pip install --no-cache-dir \
+    torch-geometric>=2.3.0 \
+    torch-scatter>=2.1.0 \
+    torch-sparse>=0.6.0
+
+# Stage 3: Production stage
+FROM python:3.11-slim AS production
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/* && \
+    apt-get clean
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Copy virtual environment from dependencies stage
+COPY --from=dependencies /opt/venv /opt/venv
+
+# Copy AI/ML libraries from builder stage
+COPY --from=builder /opt/venv /opt/venv
+
+# Set environment variables
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONPATH="/app"
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Copy application code
+COPY --chown=appuser:appuser backend/app ./app
+COPY --chown=appuser:appuser backend/alembic.ini ./
+COPY --chown=appuser:appuser backend/alembic ./alembic
+COPY --chown=appuser:appuser backend/config ./config
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/temp && \
+    chown -R appuser:appuser /app
+
+# Switch to non-root user
+USER appuser
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Start command
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -10,11 +10,34 @@ try:
 except ImportError:
     CELERY_AVAILABLE = False
     celery_app = None
-from app.db.session import AsyncSessionLocal
+
+# Simple imports with fallbacks
+from app.db.session import get_db
 from sqlalchemy import text, select
 from sqlalchemy.exc import SQLAlchemyError
 from app.core.logger import logger
-from app.core.metrics import ANALYSIS_STARTED, ANALYSIS_COMPLETED, CACHED_FILES_SKIPPED, ANALYSIS_DURATION, INCREMENTAL_HIT
+
+# Simple metrics with fallbacks
+try:
+    from app.core.metrics import ANALYSIS_STARTED, ANALYSIS_COMPLETED, CACHED_FILES_SKIPPED, ANALYSIS_DURATION, INCREMENTAL_HIT
+except ImportError:
+    ANALYSIS_STARTED = "analysis_started"
+    ANALYSIS_COMPLETED = "analysis_completed"
+    CACHED_FILES_SKIPPED = "cached_files_skipped"
+    ANALYSIS_DURATION = "analysis_duration"
+    INCREMENTAL_HIT = "incremental_hit"
+from app.db.session import get_db
+from app.core.logger import logger
+# Import metrics with fallback
+try:
+    from app.core.metrics import ANALYSIS_STARTED, ANALYSIS_COMPLETED, CACHED_FILES_SKIPPED, ANALYSIS_DURATION, INCREMENTAL_HIT
+except ImportError:
+    # Fallback metrics if metrics module has issues
+    ANALYSIS_STARTED = "analysis_started"
+    ANALYSIS_COMPLETED = "analysis_completed"
+    CACHED_FILES_SKIPPED = "cached_files_skipped"
+    ANALYSIS_DURATION = "analysis_duration"
+    INCREMENTAL_HIT = "incremental_hit"
 from app.services.s3_storage import get_s3_storage
 from app.services.glm_service import glm_service
 from app.core.cache import CacheManager, LocalLRUCache, RedisCache, DatabaseCache
@@ -31,7 +54,7 @@ def compute_file_meta(file_path: str) -> dict:
     h = hashlib.sha256(file_path.encode('utf-8')).hexdigest()
     return {
         'file_hash': h[:64],
-        'ast_fingerprint': hashlib.sha1(file_path.encode('utf-8')).hexdigest()[:64]
+        'ast_fingerprint': hashlib.sha1(file_path.encode('utf-8')).hexdigest()
     }
 
 
@@ -47,7 +70,7 @@ async def emit_cached_result(db, result_data, session_id: int, file_path: str):
         await db.execute(insert_sql.bindparams(sid=session_id, type='analysis_result', path=result_data.get('payload_url', ''), size=0))
         await db.commit()
     except Exception:
-        logger.exception("Failed to emit result for %s", file_path)
+        logger.error("Failed to emit result for %s", file_path)
 
 
 def persist_artifacts(session_id: int, file_path: str, result: dict) -> Tuple[str, str]:
@@ -78,7 +101,10 @@ def persist_artifacts(session_id: int, file_path: str, result: dict) -> Tuple[st
         return f"s3://artifacts/sessions/{session_id}/{file_path.replace('/', '_')}.json", "unknown"
 
 
-@celery_app.task(bind=True, max_retries=5, autoretry_for=(Exception,), retry_backoff=2)
+# Use dummy_task decorator if celery is not available
+task_decorator = celery_app.task if celery_app else dummy_task
+
+@task_decorator(bind=True, max_retries=5, autoretry_for=(Exception,), retry_backoff=2)
 def run_analysis(self, session_id: int):
     """Celery task to run incremental analysis for a session.
 
@@ -89,12 +115,12 @@ def run_analysis(self, session_id: int):
     - checking analysis_cache for hits and emitting results
     - analyzing changed files and writing cache entries
     """
-    # Use synchronous DB operations via AsyncSessionLocal in an asyncio loop
+    # Use synchronous DB operations via get_db() in an asyncio loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
     async def _run():
-        async with AsyncSessionLocal() as db:
+        async for db in get_db():
             try:
                 # load session context (stub: reading project_id and commit if present)
                 q = text("SELECT id, project_id, label FROM analysis_session WHERE id = :sid")
@@ -194,7 +220,7 @@ def run_analysis(self, session_id: int):
     loop.run_until_complete(_run())
 
 
-@celery_app.task(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=2)
+@task_decorator(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=2)
 def analyze_file_with_glm(self, file_path: str, content: str, language: str = "python", 
                         focus_areas: list = None) -> dict:
     """
@@ -268,7 +294,7 @@ def analyze_file_with_glm(self, file_path: str, content: str, language: str = "p
         }
 
 
-@celery_app.task(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=2)
+@task_decorator(bind=True, max_retries=3, autoretry_for=(Exception,), retry_backoff=2)
 def batch_glm_analysis(self, session_id: int, file_paths: list, focus_areas: list = None) -> dict:
     """
     Run batch GLM analysis for multiple files

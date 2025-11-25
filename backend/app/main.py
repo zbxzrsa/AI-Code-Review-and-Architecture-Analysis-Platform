@@ -88,6 +88,13 @@ code_converter.include_router(app)
 # 包含配置管理API路由
 app.include_router(config_management.router, prefix="/api")
 
+# 添加健康检查路由
+try:
+    from app.api import health
+    app.include_router(health.router)
+except ImportError:
+    pass
+
 # 健康检查端点
 @app.get("/health")
 async def health_check():

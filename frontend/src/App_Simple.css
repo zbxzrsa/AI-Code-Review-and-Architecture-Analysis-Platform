@@ -1,0 +1,30 @@
+.App {
+  text-align: center;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+}
+
+.App-header a {
+  color: #61dafb;
+  text-decoration: none;
+  font-size: 16px;
+  padding: 10px 20px;
+  border: 1px solid #61dafb;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
+.App-header a:hover {
+  background-color: #61dafb;
+  color: #282c34;
+}

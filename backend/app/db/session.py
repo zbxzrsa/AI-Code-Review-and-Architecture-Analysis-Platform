@@ -174,6 +174,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with db_manager.get_session() as session:
         yield session
 
+# 向后兼容的会话工厂
+AsyncSessionLocal = sessionmaker(
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autoflush=True,
+    autocommit=False
+)
+
 # 优化的批量操作函数
 async def bulk_insert(session: AsyncSession, model_class, data: list) -> None:
     """批量插入优化"""
@@ -233,3 +241,6 @@ async def init_database() -> None:
 def get_db_manager() -> DatabaseManager:
     """获取数据库管理器实例"""
     return db_manager
+
+# 向后兼容的会话工厂（用于现有代码）
+AsyncSessionLocal = None  # Will be initialized after db_manager.initialize()

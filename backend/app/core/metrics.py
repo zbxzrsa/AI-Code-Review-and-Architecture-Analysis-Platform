@@ -600,3 +600,10 @@ class ResourceMonitor:
 
 # 创建资源监控实例
 resource_monitor = ResourceMonitor()
+
+# 向后兼容的度量常量（用于现有代码）
+ANALYSIS_STARTED = "analysis_started"
+ANALYSIS_COMPLETED = "analysis_completed"
+CACHED_FILES_SKIPPED = "cached_files_skipped"
+ANALYSIS_DURATION = "analysis_duration"
+INCREMENTAL_HIT = "incremental_hit"

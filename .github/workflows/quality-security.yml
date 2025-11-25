@@ -1,0 +1,365 @@
+name: Code Quality and Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  # Comprehensive Security Scanning
+  security-scan:
+    name: Security Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Semgrep security scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/owasp-top-ten
+            p/cwe-top-25
+            p/generic
+          generate-sarif: true
+          publish-sarif: true
+
+      - name: Run CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          languages: python, javascript, typescript
+          queries: security-extended,security-and-quality
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH,MEDIUM'
+
+      - name: Upload Trivy results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Run Snyk security scan
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.10.0
+        if: github.event_name == 'schedule'
+        with:
+          target: 'https://staging.ai-code-review.example.com'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
+  # Dependency Security Analysis
+  dependency-security:
+    name: Dependency Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install safety
+          pip install -r requirements.txt
+
+      - name: Run Python dependency security check
+        working-directory: backend
+        run: |
+          safety check --json --output safety-report.json || true
+          safety check --db --output safety-db-report.json || true
+
+      - name: Install Node.js dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run npm audit
+        working-directory: frontend
+        run: |
+          npm audit --audit-level=moderate --json > npm-audit.json || true
+          npm audit --audit-level=high --json > npm-audit-high.json || true
+
+      - name: Run Snyk dependency check
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-security-reports
+          path: |
+            backend/safety-report.json
+            backend/safety-db-report.json
+            frontend/npm-audit.json
+            frontend/npm-audit-high.json
+          retention-days: 30
+
+  # Code Quality Analysis
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: |
+            backend/requirements.txt
+            backend/pyproject.toml
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Install Node.js dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run SonarCloud scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Run CodeClimate analysis
+        uses: paambaati/codeclimate-action@v5.0.0
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
+        with:
+          coverageLocations: |
+            backend/coverage.xml:coverage.py
+            frontend/coverage/lcov.info:coverage.js
+
+      - name: Run complexity analysis
+        working-directory: backend
+        run: |
+          radon cc app --json > radon-complexity.json || true
+          radon mi app --json > radon-maintainability.json || true
+          xenon --max-absolute A --max-modules A --max-average A app || true
+
+      - name: Run frontend bundle analysis
+        working-directory: frontend
+        run: |
+          npm run build
+          npx webpack-bundle-analyzer build/static/js/*.js --mode=json --report=bundle-analysis.json || true
+
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: code-quality-reports
+          path: |
+            backend/radon-complexity.json
+            backend/radon-maintainability.json
+            frontend/bundle-analysis.json
+          retention-days: 30
+
+  # License Compliance
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install Python dependencies
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install pip-licenses
+          pip install -r requirements.txt
+
+      - name: Install Node.js dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Check Python licenses
+        working-directory: backend
+        run: |
+          pip-licenses --from=mixed --format=json --output-file=python-licenses.json || true
+          pip-licenses --from=mixed --fail-on="unlicensed;unknown;BSD" || true
+
+      - name: Check Node.js licenses
+        working-directory: frontend
+        run: |
+          npx license-checker --json --outputFile=node-licenses.json || true
+          npx license-checker --failOn "GPL;AGPL;LGPL;UNLICENSED" || true
+
+      - name: Upload license reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: license-reports
+          path: |
+            backend/python-licenses.json
+            frontend/node-licenses.json
+          retention-days: 30
+
+  # Performance and Load Testing
+  performance-analysis:
+    name: Performance Analysis
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Start test environment
+        run: |
+          docker-compose -f docker-compose.enhanced.yml up -d
+          sleep 60
+
+      - name: Wait for services
+        run: |
+          timeout 300 bash -c 'until curl -f http://localhost:8000/health; do sleep 5; done'
+          timeout 300 bash -c 'until curl -f http://localhost:3000; do sleep 5; done'
+
+      - name: Setup Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@0.12.x
+
+      - name: Run Lighthouse CI
+        run: |
+          lhci autorun
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Setup k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run load tests
+        run: |
+          k6 run --out json=load-test-results.json tests/perf/k6_load_test.js
+
+      - name: Upload performance reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-reports
+          path: |
+            .lighthouseci/
+            load-test-results.json
+          retention-days: 30
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose -f docker-compose.enhanced.yml down -v
+
+  # Documentation Quality
+  documentation-check:
+    name: Documentation Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install documentation tools
+        run: |
+          pip install doc8 sphinx
+          npm install -g markdownlint-cli2
+
+      - name: Check Python docstrings
+        working-directory: backend
+        run: |
+          pydocstyle app --json > pydocstyle-report.json || true
+
+      - name: Check documentation style
+        run: |
+          doc8 docs/ --json > doc8-report.json || true
+
+      - name: Check Markdown files
+        run: |
+          markdownlint-cli2 "**/*.md" "#node_modules" > markdownlint-report.json || true
+
+      - name: Check README links
+        run: |
+          npm install -g markdown-link-check
+          find . -name "README.md" -exec markdown-link-check {} \; > readme-links-report.json || true
+
+      - name: Upload documentation reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: documentation-reports
+          path: |
+            backend/pydocstyle-report.json
+            doc8-report.json
+            markdownlint-report.json
+            readme-links-report.json
+          retention-days: 30

@@ -39,86 +39,163 @@ The platform follows an event-driven microservice architecture:
 
 ## Getting Started
 
-### 1. Clone and bootstrap
+### Prerequisites
 
-```bash
-git clone <repository-url>
-cd intelligent-code-review-and-architecture-analysis-platform
-```
+Ensure you have the following installed:
 
-### 2. One-command launch (recommended)
-
-The platform now includes a cross-platform one-command runner that builds and starts everything with health checks.
-
-#### Prerequisites
 - **Docker** 20.10+ and Docker Compose 2.0+
-- **Node.js** 18+ (for the one-command runner)
-- **Git** for cloning the repository
+- **Node.js** 18+ and npm 8+
+- **Python** 3.11+ (for local development)
+- **Git** for version control
 
-#### Quick Start
+### Quick Start (Recommended)
+
+The platform includes a cross-platform one-command runner that builds and starts everything with health checks.
 
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd ai-code-review-and-architecture-analysis-platform
+cd AI-Code-Review-and-Architecture-Analysis-Platform
 
 # One-command build and start (cross-platform)
 npm run build
 ```
 
 This single command will:
-- 🏗️ Build all Docker images
-- 🚀 Start all services with health checks
-- 📊 Verify service availability
-- 🎉 Display success banner with access URLs
 
-#### Alternative Commands
+- 🏗️ Build all Docker images with multi-stage optimization
+- 🚀 Start all services with health checks and monitoring
+- 📊 Verify service availability and dependencies
+- 🎉 Display success banner with access URLs
+- 📈 Set up monitoring dashboards
+
+#### Available Commands
 
 ```bash
-npm run start      # Start services (if already built)
-npm run down       # Stop and remove all services
-npm run logs       # Show service logs
-npm run health     # Check service health
-npm run doctor     # System diagnostics
-npm run clean      # Clean up Docker resources
+npm run build      # Build and start all services
+npm run start       # Start services (if already built)
+npm run down        # Stop and remove all services
+npm run logs        # Show service logs
+npm run health      # Check service health
+npm run doctor      # System diagnostics
+npm run clean       # Clean up Docker resources
+npm run dev         # Development mode with hot reload
+npm run prod        # Production mode with optimizations
 ```
 
-#### Environment Profiles
+#### Environment Configuration
+
+Create a `.env` file for custom configuration:
 
 ```bash
-# Development (default)
+# Database Configuration
+POSTGRES_DB=codeinsight
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password
+
+# Application Configuration
+NODE_ENV=development
+REACT_APP_API_URL=http://localhost:8000
+REACT_APP_WS_URL=ws://localhost:8000
+
+# AI/ML Configuration
+OPENAI_API_KEY=your_openai_key
+ANTHROPIC_API_KEY=your_anthropic_key
+
+# Monitoring
+PROMETHEUS_ENABLED=true
+GRAFANA_ADMIN_PASSWORD=admin123
+```
+
+### Enhanced Docker Setup
+
+For production or enhanced development, use the optimized Docker configuration:
+
+```bash
+# Use enhanced configuration with monitoring
+docker-compose -f docker-compose.enhanced.yml up --build -d
+
+# View service status
+docker-compose -f docker-compose.enhanced.yml ps
+
+# View logs
+docker-compose -f docker-compose.enhanced.yml logs -f
+```
+
+### Local Development Setup
+
+#### Backend Development
+
+```bash
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python -m venv .venv
+
+# Activate virtual environment
+# On Windows:
+.venv\Scripts\activate
+# On macOS/Linux:
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run database migrations
+alembic upgrade head
+
+# Start development server
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### Frontend Development
+
+```bash
+# Navigate to frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start development server
+npm start
+
+# For production build
 npm run build
 
-# Production
-PROFILE=prod npm run build
-
-# Staging
-PROFILE=staging npm run build
+# Run tests
+npm test
 ```
 
-### 3. Manual dev setup
+### Service Endpoints
 
-```bash
-# Backend
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+After starting the services, you can access:
 
-# Frontend
-cd ../frontend
-npm install
-npm start
-```
+#### Application Endpoints
 
-### 4. Useful endpoints
+- **Frontend Application**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **API Documentation**: http://localhost:8000/docs
+- **WebSocket Endpoint**: ws://localhost:8000/ws
 
-- Frontend: http://localhost:3000
-- API Gateway: http://localhost:8000
-- OpenAPI Docs: http://localhost:8000/docs
-- PostgreSQL: localhost:5432
-- Redis: localhost:6379
-- Neo4j Browser: http://localhost:7474
+#### Database Endpoints
+
+- **PostgreSQL**: localhost:5432
+- **Redis**: localhost:6379
+- **Neo4j Browser**: http://localhost:7474 (neo4j/password)
+
+#### Monitoring Endpoints (Enhanced Setup)
+
+- **Grafana Dashboard**: http://localhost:3001 (admin/admin123)
+- **Prometheus**: http://localhost:9090
+- **Nginx Proxy**: http://localhost (port 80)
+
+#### Health Check Endpoints
+
+- **Backend Health**: http://localhost:8000/health
+- **Frontend Health**: http://localhost:3000
+- **Database Health**: Available via Docker health checks
 
 ## Repository Layout
 
@@ -134,12 +211,264 @@ npm start
 └── README.md                You are here
 ```
 
+## Development Guide
+
+### Code Structure
+
+```
+.
+├── backend/                 # FastAPI services and AI pipelines
+│   ├── app/                # Application source code
+│   ├── alembic/            # Database migrations
+│   ├── config/             # Configuration files
+│   ├── tests/              # Backend tests
+│   └── Dockerfile.enhanced # Enhanced Docker configuration
+├── frontend/               # React application
+│   ├── src/                # Source code
+│   ├── public/             # Static assets
+│   └── package.json        # Dependencies and scripts
+├── docker/                 # Docker configurations
+│   ├── frontend/           # Frontend Dockerfile
+│   ├── nginx/              # Nginx configuration
+│   ├── postgres/           # PostgreSQL init scripts
+│   ├── redis/              # Redis configuration
+│   └── prometheus/         # Monitoring configuration
+├── docs/                   # Documentation
+├── tests/                  # E2E and integration tests
+├── tools/                  # Development tools and utilities
+└── docker-compose.enhanced.yml  # Enhanced Docker setup
+```
+
+### Development Workflow
+
+#### 1. Setting Up Development Environment
+
+```bash
+# Clone and setup
+git clone <repository-url>
+cd AI-Code-Review-and-Architecture-Analysis-Platform
+
+# Copy environment template
+cp .env.example .env
+# Edit .env with your configuration
+
+# Install dependencies
+npm install
+
+# Start development environment
+npm run dev
+```
+
+#### 2. Making Changes
+
+**Backend Changes:**
+
+```bash
+# Navigate to backend
+cd backend
+
+# Run tests
+pytest
+
+# Run with coverage
+pytest --cov=app
+
+# Lint code
+ruff check .
+black .
+mypy app/
+
+# Run specific test
+pytest tests/test_specific.py::test_function
+```
+
+**Frontend Changes:**
+
+```bash
+# Navigate to frontend
+cd frontend
+
+# Run tests
+npm test
+
+# Run tests with coverage
+npm test -- --coverage
+
+# Lint code
+npm run lint
+
+# Format code
+npm run format
+
+# Type checking
+npm run type-check
+```
+
+#### 3. Database Migrations
+
+```bash
+# Create new migration
+cd backend
+alembic revision --autogenerate -m "Description of changes"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback migration
+alembic downgrade -1
+```
+
+### Testing Strategy
+
+#### Backend Testing
+
+- **Unit Tests**: pytest with coverage reporting
+- **Integration Tests**: Database and API integration
+- **Performance Tests**: Load testing with k6
+- **Security Tests**: Security scanning with bandit
+
+#### Frontend Testing
+
+- **Unit Tests**: Jest and React Testing Library
+- **Integration Tests**: Component integration testing
+- **E2E Tests**: Playwright for end-to-end testing
+- **Performance Tests**: Lighthouse CI integration
+
+#### Running All Tests
+
+```bash
+# Run all tests
+npm run test:all
+
+# Run tests with coverage
+npm run test:coverage
+
+# Run E2E tests
+npm run test:e2e
+
+# Run performance tests
+npm run test:performance
+```
+
+### Code Quality Standards
+
+#### Backend Standards
+
+- **Python**: 3.11+ with type hints
+- **Linting**: ruff for fast linting, black for formatting
+- **Type Checking**: mypy with strict mode
+- **Testing**: Minimum 80% coverage requirement
+- **Documentation**: Docstrings for all public functions
+
+#### Frontend Standards
+
+- **TypeScript**: Strict mode enabled
+- **Linting**: ESLint with React rules
+- **Formatting**: Prettier with consistent configuration
+- **Testing**: Minimum 80% coverage requirement
+- **Components**: Storybook for component documentation
+
+### Performance Optimization
+
+#### Backend Optimization
+
+- **Database**: Connection pooling and query optimization
+- **Caching**: Redis for frequently accessed data
+- **Async**: Async/await for I/O operations
+- **Monitoring**: Prometheus metrics and health checks
+
+#### Frontend Optimization
+
+- **Code Splitting**: Dynamic imports for large components
+- **Bundle Analysis**: Webpack Bundle Analyzer
+- **Caching**: Service worker for offline support
+- **Performance**: Lighthouse CI integration
+
+### Security Best Practices
+
+#### Backend Security
+
+- **Authentication**: JWT tokens with refresh mechanism
+- **Authorization**: Role-based access control
+- **Input Validation**: Pydantic models for validation
+- **SQL Injection**: SQLAlchemy ORM protection
+- **CORS**: Proper cross-origin resource sharing
+
+#### Frontend Security
+
+- **XSS Protection**: Content Security Policy headers
+- **Authentication**: Secure token storage
+- **API Security**: HTTPS and secure headers
+- **Dependencies**: Regular security audits
+
 ## Contributing
 
-1. Create a feature branch from `main`.
-2. Run `npm run test --prefix frontend` and `pytest` for backend changes.
-3. Provide screenshots or terminal recordings for UI updates.
-4. Submit a pull request with a concise summary and detailed testing evidence.
+### Contribution Guidelines
+
+1. **Fork the Repository**: Create a fork on GitHub
+2. **Create Feature Branch**: Branch from `main` with descriptive name
+3. **Make Changes**: Follow code quality standards
+4. **Test Thoroughly**: Ensure all tests pass
+5. **Update Documentation**: Update relevant documentation
+6. **Submit Pull Request**: With detailed description
+
+### Pull Request Process
+
+#### Before Submitting
+
+- [ ] Code follows project style guidelines
+- [ ] All tests pass (unit, integration, E2E)
+- [ ] Code coverage is maintained or improved
+- [ ] Documentation is updated
+- [ ] Performance impact is considered
+- [ ] Security implications are reviewed
+
+#### Pull Request Template
+
+```markdown
+## Description
+
+Brief description of changes made
+
+## Type of Change
+
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+
+## Testing
+
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] E2E tests pass
+- [ ] Manual testing completed
+
+## Checklist
+
+- [ ] Code follows style guidelines
+- [ ] Self-review completed
+- [ ] Documentation updated
+- [ ] Performance considered
+```
+
+### Code Review Process
+
+1. **Automated Checks**: CI/CD pipeline runs automatically
+2. **Peer Review**: At least one team member review
+3. **Security Review**: Security team approval for sensitive changes
+4. **Performance Review**: Performance impact assessment
+5. **Approval**: Merge after all approvals received
+
+### Release Process
+
+1. **Version Bump**: Update version numbers
+2. **Changelog**: Update CHANGELOG.md
+3. **Tag Release**: Create Git tag
+4. **Deploy**: Deploy to staging environment
+5. **Testing**: Comprehensive staging testing
+6. **Production**: Deploy to production
+7. **Monitoring**: Post-deployment monitoring
 
 ## License
 
