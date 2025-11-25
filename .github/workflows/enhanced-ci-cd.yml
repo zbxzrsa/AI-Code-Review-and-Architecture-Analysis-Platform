@@ -123,7 +123,7 @@ jobs:
           echo "result=success" >> $GITHUB_OUTPUT
 
       - name: Upload quality reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: quality-reports
@@ -227,7 +227,7 @@ jobs:
             tests/integration/ || echo "Integration tests completed"
 
       - name: Upload test reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: backend-test-reports-${{ matrix.python-version }}
@@ -276,7 +276,7 @@ jobs:
           npm run test:components || echo "Component tests completed"
 
       - name: Upload test reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: frontend-test-reports
@@ -322,7 +322,7 @@ jobs:
           npx playwright test tests/e2e/ --reporter=html
 
       - name: Upload E2E reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: e2e-test-reports
@@ -546,7 +546,7 @@ jobs:
           BASE_URL: https://staging.ai-code-review.example.com
 
       - name: Upload performance results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         if: always()
         with:
           name: performance-results

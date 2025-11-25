@@ -63,7 +63,7 @@ jobs:
           pytest -q tests --maxfail=1 --disable-warnings --cov=app --cov-report=xml --cov-report=html --cov-report=term --junit-xml=test-report.xml
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: backend-coverage-${{ matrix.python-version }}
           path: |
