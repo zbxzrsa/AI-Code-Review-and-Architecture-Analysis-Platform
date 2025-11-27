@@ -1,113 +1,75 @@
 version: '3.8'
 
 services:
-  # 后端FastAPI服务
-  backend:
-    build:
-      context: ./backend
-      dockerfile: ./Dockerfile.simple
-    ports:
-      - '8000:8000'
+  api:
+    build: ./backend
+    env_file: .env
+    ports: ['${API_PORT:-8000}:8000']
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB:-codeinsight}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-codeinsight}
-    networks:
-      - codeinsight-network
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      neo4j: { condition: service_healthy }
+      ollama: { condition: service_started }
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8000/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    command: ['/app/entrypoint.sh']
+    restart: unless-stopped
 
-  # 前端应用
+  worker:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      api: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: ['celery', '-A', 'app.celery_app', 'worker', '--loglevel=INFO']
+    restart: unless-stopped
+
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: ../docker/frontend/Dockerfile
-    ports:
-      - '3000:3000'
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    build: ./frontend
+    env_file: .env
+    ports: ['${FRONTEND_PORT:-3000}:3000']
     depends_on:
-      - backend
-    environment:
-      - REACT_APP_API_URL=http://localhost:8000
-    networks:
-      - codeinsight-network
+      api: { condition: service_started }
+    restart: unless-stopped
 
-  # 数据库
-  postgres:
+  db:
     image: postgres:15
-    ports:
-      - '5432:5432'
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-codeinsight}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
-    networks:
-      - codeinsight-network
+    environment: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: app }
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-codeinsight}']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
+      interval: 5s
+      timeout: 5s
+      retries: 40
 
-  # 缓存
   redis:
     image: redis:7
-    ports:
-      - '6379:6379'
-    volumes:
-      - redis_data:/data
-      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
-    command: redis-server /usr/local/etc/redis/redis.conf
-    networks:
-      - codeinsight-network
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      interval: 5s
+      timeout: 3s
+      retries: 40
 
-  # Neo4j图数据库
   neo4j:
-    image: neo4j:5.9
-    ports:
-      - '7474:7474'
-      - '7687:7687'
-    environment:
-      NEO4J_AUTH: neo4j/password
-      NEO4J_dbms_memory_heap_max__size: 2G
-    volumes:
-      - neo4j_data:/data
-      - ./docker/neo4j/init.cypher:/import/init.cypher
-    networks:
-      - codeinsight-network
+    image: neo4j:5
+    environment: { NEO4J_AUTH: '${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4jpassword}' }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:7474 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 60
+    ports: ['7474:7474', '7687:7687']
 
-  # 监控
-  prometheus:
-    image: prom/prometheus:v2.42.0
-    ports:
-      - '9090:9090'
+  ollama:
+    image: ollama/ollama:latest
     volumes:
-      - ./docker/prometheus:/etc/prometheus
-    networks:
-      - codeinsight-network
+      - ./ai_models:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    ports: ['11434:11434']
+    restart: unless-stopped
 
 volumes:
   postgres_data:

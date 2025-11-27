@@ -1,4 +1,22 @@
-.PHONY: help install install-dev install-frontend clean lint format type-check test test-coverage test-integration test-e2e security-scan docker-up docker-down docker-build docker-logs pre-commit setup-dev start-dev stop-dev health-check docs-serve docs-build migrate-db seed-db backup-db restore-db performance-test security-audit dependency-check update-deps clean-all
+.PHONY: dev up down logs lint test help install install-dev install-frontend clean lint format type-check test test-coverage test-integration test-e2e security-scan docker-up docker-down docker-build docker-logs pre-commit setup-dev start-dev stop-dev health-check docs-serve docs-build migrate-db seed-db backup-db restore-db performance-test security-audit dependency-check update-deps clean-all
+
+# One-command development
+dev: up
+
+up: ./scripts/bootstrap.sh
+	docker compose up --remove-orphans
+
+down:
+	docker compose down -v
+
+logs:
+	docker compose logs -f
+
+lint:
+	cd backend && ruff check . || true && cd ../frontend && npx eslint . --ext .ts,.tsx
+
+test:
+	cd backend && pytest -q || true && cd ../frontend && npm test --if-present
 
 # Default target
 help:
@@ -232,3 +250,12 @@ deploy-staging:
 deploy-prod:
 	@echo "Deploying to production..."
 	ansible-playbook -i ansible/inventory/prod ansible/site.yml --extra-vars "confirm_deployment=true"
+
+prod:
+	docker compose -f docker-compose.prod.yml up -d
+
+prod-health:
+	@echo "Checking production services..."
+	curl -f http://localhost:8000/healthz || echo "Backend health check failed"
+	curl -f http://localhost:3000 || echo "Frontend health check failed"
+	curl -f http://localhost:8000/metrics || echo "Metrics endpoint failed"

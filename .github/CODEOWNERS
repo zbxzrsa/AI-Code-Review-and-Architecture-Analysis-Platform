@@ -1,0 +1,31 @@
+# Team Ownership and Review Requirements
+
+# Backend team owns all server-side code
+backend/ @your-team-backend
+backend/app/ @your-team-backend
+backend/ai/ @your-team-ml
+
+# Frontend team owns UI and client-side code
+frontend/ @your-team-frontend
+frontend/src/ @your-team-frontend
+
+# ML team owns AI models, prompts, and evaluation
+backend/ai/ @your-team-ml
+backend/ai/engines/ @your-team-ml
+backend/ai/models/ @your-team-ml
+backend/ai/prompts/ @your-team-ml
+datasets/ @your-team-ml
+
+# DevOps/Infra owns deployment and CI/CD
+.github/ @your-team-devops
+docker-compose*.yml @your-team-devops
+Dockerfile* @your-team-devops
+Makefile @your-team-devops
+vercel.json @your-team-devops
+
+# Documentation team owns docs and runbooks
+docs/ @your-team-docs
+*.md @your-team-docs
+
+# Default fallback for unowned files
+* @your-team-lead

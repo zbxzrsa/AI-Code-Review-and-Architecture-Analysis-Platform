@@ -1,0 +1,50 @@
+# Next Channel Experiment Configuration
+# Search space for hyperparameter optimization
+search_space:
+  temperature:
+    type: float
+    min: 0.1
+    max: 1.2
+    step: 0.1
+  top_p:
+    type: float
+    min: 0.7
+    max: 1.0
+    step: 0.05
+  max_tokens:
+    type: int
+    min: 200
+    max: 1200
+    step: 100
+  context_k:
+    type: int
+    min: 0
+    max: 10
+    step: 2
+  prompt_variant:
+    type: categorical
+    values: ['concise', 'detailed', 'step_by_step', 'code_focused']
+
+# Evaluation strategy
+evaluation:
+  dataset: 'datasets/ai_eval/base.jsonl'
+  metrics: ['score', 'latency_ms', 'tokens_out']
+  optimization_target: 'score' # maximize evaluation score
+  constraints:
+    latency_ms: { max: 5000 } # must complete within 5 seconds
+    tokens_out: { min: 50, max: 1000 } # reasonable output length
+
+# Experiment configuration
+experiment:
+  name: 'next_channel_hyperparameter_optimization'
+  channel: 'next'
+  max_iterations: 50
+  early_stopping:
+    patience: 10 # stop if no improvement after 10 iterations
+    min_improvement: 0.01 # minimum score improvement to continue
+
+# Safety constraints
+safety:
+  max_temperature: 1.0
+  require_human_review: true
+  auto_promotion_threshold: 0.85 # only auto-promote if score >= 0.85

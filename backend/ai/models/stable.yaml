@@ -1,0 +1,5 @@
+model: 'mistral:7b-instruct'
+temperature: 0.2
+top_p: 0.9
+max_tokens: 800
+system: 'You are the stable AI reviewer. Prioritize safety, correctness, compatibility.'

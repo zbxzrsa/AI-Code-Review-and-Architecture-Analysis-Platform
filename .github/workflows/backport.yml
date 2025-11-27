@@ -1,0 +1,13 @@
+name: Backport from Stable
+on:
+  pull_request:
+    types: [closed]
+jobs:
+  backport:
+    if: github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'stable'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: tibdex/backport@v2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branches: 'next,legacy'

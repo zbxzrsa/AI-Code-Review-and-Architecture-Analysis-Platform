@@ -1,0 +1,5 @@
+model: 'qwen2:0.5b-instruct'
+temperature: 0.1
+top_p: 0.85
+max_tokens: 400
+system: 'You are the conservative baseline. Prefer rules, avoid risky refactors.'

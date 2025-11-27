@@ -1,10 +1,14 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import time
 import logging
+import json
+import asyncio
 from pathlib import Path
 import os
+from backend.ai.router import pick
+from backend.ai.metrics import structured_logger, generate_request_id, get_metrics
 
 from app.api.endpoints import ai_analysis, sessions, versions, search, baselines, auth
 from app.api import code_converter  # 导入代码转换API
@@ -51,9 +55,10 @@ app = FastAPI(
 )
 
 # 配置CORS
+origins = [o for o in os.getenv("CORS_ALLOWED_ORIGINS","").split(",") if o]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 在生产环境中应该限制为特定域名
+    allow_origins=origins or [""],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -99,6 +104,136 @@ except ImportError:
 @app.get("/health")
 async def health_check():
     return {"status": "ok", "service": "ai-analysis-api"}
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
+
+@app.post("/ai/review")
+async def ai_review(req: Request):
+    """AI review endpoint with structured mode support"""
+    body = await req.json()
+    text = body.get("text","")
+    context = body.get("context", [])
+    meta = body.get("meta", {})
+    
+    # Determine if structured mode is enabled
+    structured_mode = (
+        req.headers.get("X-Structured-JSON", "").lower() == "true" or
+        os.getenv("AI_STRUCTURED_MODE", "false").lower() == "true"
+    )
+    
+    ch = req.headers.get("X-AI-Channel") or os.getenv("AI_CHANNEL","stable")
+    engine = pick(ch)
+    
+    if structured_mode and hasattr(engine.review, '__code__') and 'text, context, meta' in engine.review.__code__.co_varnames:
+        # Use new structured interface
+        out = engine.review(text=text, context=context, meta=meta)
+        return {"channel": ch, "structured": True, "result": out}
+    else:
+        # Use legacy interface
+        prompt = f"Review this code change and suggest improvements:\n{text}"
+        if context:
+            prompt = f"Context: {context}\n\n{prompt}"
+        out = engine.review(prompt)
+        return {"channel": ch, "structured": False, "result": out}
+
+async def stream_ollama_response(engine, prompt: str, structured_mode: bool = False, text: str = "", context: list = None, meta: dict = None):
+    """Stream response from Ollama with heartbeat and structured mode support"""
+    import requests
+    
+    if structured_mode and hasattr(engine.review, '__code__') and 'text, context, meta' in engine.review.__code__.co_varnames:
+        # For structured mode, we need to handle differently
+        # Since structured output isn't streaming-friendly, we'll run it and stream the result
+        try:
+            result = engine.review(text=text, context=context, meta=meta)
+            yield f"data: {json.dumps({'chunk': 'Processing structured review...'})}\n\n"
+            yield f"data: {json.dumps({'structured_result': result, 'done': True})}\n\n"
+            return
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e), 'done': True})}\n\n"
+            return
+    
+    # Legacy streaming mode
+    payload = {
+        "model": engine.CFG["model"],
+        "prompt": f'{engine.CFG["system"]}\n\n{prompt}',
+        "options": {
+            "temperature": engine.CFG["temperature"],
+            "top_p": engine.CFG["top_p"]
+        },
+        "stream": True
+    }
+    
+    try:
+        with requests.post("http://ollama:11434/api/generate", 
+                         json=payload, 
+                         stream=True, 
+                         timeout=120) as r:
+            r.raise_for_status()
+            
+            last_heartbeat = time.time()
+            
+            for line in r.iter_lines():
+                if line:
+                    try:
+                        data = json.loads(line)
+                        if "response" in data:
+                            chunk = data["response"]
+                            yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                            last_heartbeat = time.time()
+                        
+                        # Send heartbeat every 15 seconds
+                        if time.time() - last_heartbeat > 15:
+                            yield f": heartbeat\n\n"
+                            last_heartbeat = time.time()
+                            
+                    except json.JSONDecodeError:
+                        continue
+                        
+    except Exception as e:
+        yield f"data: {json.dumps({'error': str(e)})}\n\n"
+    
+    yield f"data: {json.dumps({'done': True})}\n\n"
+
+@app.post("/ai/review/stream")
+async def ai_review_stream(req: Request):
+    """Streaming AI review endpoint with SSE and structured mode support"""
+    request_id = getattr(req.state, 'request_id', generate_request_id())
+    body = await req.json()
+    text = body.get("text","")
+    context = body.get("context", [])
+    meta = body.get("meta", {})
+    
+    # Determine if structured mode is enabled
+    structured_mode = (
+        req.headers.get("X-Structured-JSON", "").lower() == "true" or
+        os.getenv("AI_STRUCTURED_MODE", "false").lower() == "true"
+    )
+    
+    ch = req.headers.get("X-AI-Channel") or os.getenv("AI_CHANNEL","stable")
+    engine = pick(ch)
+    
+    prompt = f"Review this code change and suggest improvements:\n{text}"
+    if context:
+        prompt = f"Context: {context}\n\n{prompt}"
+    
+    return StreamingResponse(
+        stream_ollama_response(engine, prompt, structured_mode, text, context, meta),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+            "X-Request-ID": request_id,
+            "X-Structured-Mode": str(structured_mode).lower()
+        }
+    )
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint"""
+    return get_metrics()
 
 # 启动事件：初始化配置系统与动态配置
 @app.on_event("startup")

@@ -1,0 +1,11 @@
+backend/
+infra/
+ansible/
+docker/
+docs/
+tests/
+tools/
+.github/
+node_modules/
+.vscode/
+.idea/
