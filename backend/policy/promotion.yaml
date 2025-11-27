@@ -1,0 +1,29 @@
+name: 'default'
+description: 'Default promotion policy for next→stable channel transitions'
+rollout_strategy: 'canary'
+auto_promote: false
+observation_window_hours: 24
+
+gates:
+  # Performance gates
+  - type: 'performance'
+    metric: 'p95_latency'
+    threshold: 2000 # 2 seconds in ms
+    operator: 'lt'
+
+  - type: 'performance'
+    metric: 'error_rate'
+    threshold: 0.05 # 5% error rate
+    operator: 'lt'
+
+  # Safety gates
+  - type: 'safety'
+    metric: 'critical_issues'
+    threshold: 0.1 # Less than 0.1 critical issues per eval
+    operator: 'lt'
+
+  # Evaluation quality gates
+  - type: 'evaluation'
+    metric: 'eval_coverage'
+    threshold: 0.8 # 80% coverage
+    operator: 'gt'

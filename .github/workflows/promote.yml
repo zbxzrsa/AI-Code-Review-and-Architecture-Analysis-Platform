@@ -1,0 +1,16 @@
+name: Promote Next to Stable
+on:
+  workflow_dispatch:
+  schedule: [{ cron: '0 * * * *' }]
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gate by simple SLO signal (placeholder)
+        run: echo "Check metrics here; proceed only if healthy for 24h"
+      - name: Merge next -> stable
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@example.com"
+          gh pr create -B stable -H next -t "Promote next to stable" -b "Auto-promotion" || true

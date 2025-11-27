@@ -1,0 +1,20 @@
+{
+  "stable": {
+    "model": "mistral:7b-instruct",
+    "prompt": "v1.2.3",
+    "deprecated_after": null,
+    "notes": "Conservative production reviewer with strict JSON schema and RAG citations"
+  },
+  "next": {
+    "model": "qwen2:1.5b-instruct",
+    "prompt": "v1.2.3",
+    "deprecated_after": null,
+    "notes": "Experimental reviewer; allows WebLLM in browser if available; measurable wins focus"
+  },
+  "legacy": {
+    "model": "qwen2:0.5b-instruct",
+    "prompt": "v1.2.3",
+    "deprecated_after": null,
+    "notes": "Fast baseline reviewer for negative selection; minimal token budget"
+  }
+}
