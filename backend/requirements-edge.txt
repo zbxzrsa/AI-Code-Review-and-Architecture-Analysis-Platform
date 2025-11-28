@@ -2,16 +2,16 @@
 # 只包含核心翻译功能所需的最小依赖
 
 # Web框架 - 轻量级
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
+fastapi==0.122.0
+uvicorn[standard]==0.38.0
 
 # 异步支持
 asyncio==4.0.0
 aiohttp==3.9.1
 
 # 数据处理
-pydantic==2.5.0
-pydantic-settings==2.1.0
+pydantic==2.12.5
+pydantic-settings==2.12.0
 
 # 缓存 - 内存缓存
 cachetools==6.2.2
