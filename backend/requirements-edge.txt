@@ -30,7 +30,7 @@ langdetect==1.0.9
 httpx==0.25.2
 
 # 序列化
-orjson==3.9.10
+orjson==3.11.4
 
 # 时间处理
 python-dateutil==2.8.2
