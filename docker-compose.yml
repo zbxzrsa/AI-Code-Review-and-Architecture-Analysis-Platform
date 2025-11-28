@@ -146,6 +146,71 @@ services:
       - v2_experimental
     networks:
       - ai-network
+    healthcheck:
+      test: ['CMD', 'curl', '-fsS', 'http://localhost:8000/healthz']
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    command: ['/app/entrypoint.sh']
+    restart: unless-stopped
+
+  worker:
+    build: ./backend
+    env_file: .env
+    depends_on:
+      api: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    command: ['celery', '-A', 'app.celery_app', 'worker', '--loglevel=INFO']
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    env_file: .env
+    ports: ['${FRONTEND_PORT:-3000}:3000']
+    depends_on:
+      api: { condition: service_started }
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    environment: { POSTGRES_USER: app, POSTGRES_PASSWORD: app, POSTGRES_DB: app }
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
+      interval: 5s
+      timeout: 5s
+      retries: 40
+
+  redis:
+    image: redis:7
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 40
+
+  neo4j:
+    image: neo4j:5
+    environment: { NEO4J_AUTH: '${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4jpassword}' }
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:7474 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 60
+    ports: ['7474:7474', '7687:7687']
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ./ai_models:/root/.ollama
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    ports: ['11434:11434']
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  neo4j_data:
+  redis_data:
 
 networks:
   ai-network:
