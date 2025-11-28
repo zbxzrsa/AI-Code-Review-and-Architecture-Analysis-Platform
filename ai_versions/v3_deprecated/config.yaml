@@ -1,0 +1,152 @@
+version: 'v3_deprecated'
+status: 'deprecated'
+deprecation:
+  reason: 'High latency and cost, inconsistent quality'
+  date: '2023-11-01T00:00:00Z'
+  replacement: 'v2_experimental'
+  migration_guide: 'Use version router to migrate to v2'
+model:
+  name: 'gpt-3.5-turbo'
+  type: 'openai'
+  device: 'api' # External API
+  api_key: '${OPENAI_API_KEY}'
+  fallback_enabled: false
+  cache_enabled: false
+  max_tokens: 4096
+  temperature: 0.3
+analysis:
+  rules:
+    security:
+      - 'gpt_security_review'
+    quality:
+      - 'gpt_style_review'
+      - 'gpt_best_practices'
+    performance:
+      - 'gpt_performance_review'
+    architecture:
+      - 'gpt_architectural_review'
+  languages:
+    supported: ['python', 'javascript', 'typescript', 'java', 'cpp', 'go', 'rust']
+    primary: 'python'
+  focus_areas:
+    - 'security'
+    - 'quality'
+    - 'performance'
+    - 'architecture'
+  limitations:
+    - 'high_latency'
+    - 'expensive'
+    - 'rate_limited'
+    - 'inconsistent_quality'
+metrics:
+  avg_latency: 12.4s # Why it failed
+  accuracy: 0.92
+  throughput: 5 # reviews per minute
+  error_rate: 0.15
+  cost_per_review: '$0.05' # Too expensive
+  uptime: 0.98
+  failure_reason: 'high_latency_and_cost'
+  timestamp: '2023-11-01T00:00:00Z'
+  comparison_with_v1:
+    latency_diff: '+11.6s'
+    cost_diff: '+$0.049'
+    accuracy_diff: '+0.07'
+constraints:
+  max_memory: '1GB' # API client
+  timeout: 120
+  max_file_size: '2MB'
+  max_concurrent_requests: 3
+  rate_limit:
+    requests_per_minute: 60
+    tokens_per_minute: 40000
+monitoring:
+  prometheus_enabled: false
+  log_level: 'WARNING'
+  health_check_interval: 300
+  alerting:
+    latency_threshold: 20.0s
+    error_rate_threshold: 0.2
+    cost_threshold: '$10.00/day'
+deprecation_warnings:
+  - 'High operational cost'
+  - 'Unpredictable response times'
+  - 'API rate limiting'
+  - 'Vendor lock-in'
+  - 'Privacy concerns with external API'
+migration_path:
+  target_version: 'v2_experimental'
+  steps:
+    - 'Install local Ollama environment'
+    - 'Download StarCoder model'
+    - 'Update API endpoints to use version router'
+    - 'Test with sample requests'
+    - 'Gradually migrate traffic'
+  rollback_plan:
+    - 'Keep v3 available for 30 days'
+    - 'Monitor v2 performance during migration'
+    - 'Quick switchback if issues detected'
+input_schema:
+  code:
+    type: string
+    max_length: 8000
+  language:
+    type: string
+    enum: ['python', 'javascript', 'typescript', 'java', 'cpp', 'go', 'rust']
+  context:
+    type: string
+    description: 'Additional context for analysis'
+output_schema:
+  review:
+    type: string
+  issues:
+    type: array
+    items:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: ['security', 'quality', 'performance', 'style', 'architecture']
+        severity:
+          type: string
+          enum: ['low', 'medium', 'high', 'critical']
+        line:
+          type: integer
+        message:
+          type: string
+        suggestion:
+          type: string
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+  suggestions:
+    type: array
+    items:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: ['refactor', 'optimize', 'secure', 'document']
+        description:
+          type: string
+        code_snippet:
+          type: string
+  tokens_used:
+    type: integer
+    minimum: 0
+  cost:
+    type: number
+    minimum: 0
+    currency: 'USD'
+  processing_time:
+    type: number
+    unit: 'seconds'
+  api_info:
+    type: object
+    properties:
+      model:
+        type: string
+      temperature:
+        type: number
+      max_tokens:
+        type: integer

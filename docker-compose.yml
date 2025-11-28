@@ -108,12 +108,84 @@ services:
       - ./docker/prometheus:/etc/prometheus
     networks:
       - codeinsight-network
+  # v1 Stable - Production ready (CodeBERT)
+  v1_stable:
+    build: ./ai_versions/v1_stable
+    ports:
+      - '8000:8000'
+    environment:
+      - MODEL_PATH=/model
+      - AI_VERSION=v1
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ai-network
 
-volumes:
-  postgres_data:
-  neo4j_data:
-  redis_data:
+  # v2 Experimental - New tech testing (Llama2)
+  v2_experimental:
+    build: ./ai_versions/v2_experimental
+    ports:
+      - '8001:8000' # Separate port for testing
+    environment:
+      - MODEL_PATH=/model
+      - AI_VERSION=v2
+      - GPU_ENABLED=true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:8000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ai-network
+
+  # v3 Deprecated - Failed tech archive (GPT-3.5)
+  v3_deprecated:
+    image: alpine:3.18
+    volumes:
+      - ./ai_versions/v3_deprecated:/archive:ro
+    environment:
+      - AI_VERSION=v3
+      - ARCHIVE_MODE=true
+    networks:
+      - ai-network
+    # No runtime - just for storage
+
+  # Version Router - Dynamic routing
+  version_router:
+    build:
+      context: .
+      dockerfile: Dockerfile.router
+    ports:
+      - '8090:8000'
+    environment:
+      - DEFAULT_VERSION=v1
+      - V1_PATH=/app/ai_versions/v1_stable
+      - V2_PATH=/app/ai_versions/v2_experimental
+      - V3_PATH=/app/ai_versions/v3_deprecated
+    volumes:
+      - ./ai_versions:/app/ai_versions:ro
+    depends_on:
+      - v1_stable
+      - v2_experimental
+    networks:
+      - ai-network
 
 networks:
-  codeinsight-network:
+  ai-network:
     driver: bridge
+
+volumes:
+  ai_versions:
+    driver: local

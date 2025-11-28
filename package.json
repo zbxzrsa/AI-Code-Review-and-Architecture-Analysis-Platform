@@ -8,8 +8,15 @@
     "npm": ">=8.0.0"
   },
   "scripts": {
-    "build": "./clean_start.sh",
-    "start": "./clean_start.sh"
+    "build": "cd frontend && npm run build",
+    "start": "cd frontend && npm run dev",
+    "build:ai": "bash scripts/setup_ai.sh",
+    "start:ai": "docker-compose up -d",
+    "test:ai": "curl -X POST http://localhost:8090/route -d '{\"code\":\"test\"}'",
+    "build:frontend": "cd frontend && npx vite build",
+    "dev:frontend": "cd frontend && npx vite --host 0.0.0.0 --port 3000",
+    "dev:windows": "cd frontend && npx vite --host 0.0.0.0 --port 3000",
+    "setup:windows": "setup_windows.bat"
   },
   "keywords": [
     "ai",
@@ -30,5 +37,4 @@
     "url": "https://github.com/example/ai-code-review-platform/issues"
   },
   "homepage": "https://github.com/example/ai-code-review-platform#readme"
-  }
 }

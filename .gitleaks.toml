@@ -1,0 +1,101 @@
+title = "Gitleaks Configuration for AI Code Review Platform"
+
+# Extend the base configuration
+[extend]
+useDefault = true
+
+# Custom rules for AI/ML specific secrets
+[[rules]]
+description = "OpenAI API Key"
+id = "openai-api-key"
+regex = '''sk-[a-zA-Z0-9]{48}'''
+keywords = ["sk-"]
+
+[[rules]]
+description = "Anthropic API Key"
+id = "anthropic-api-key"
+regex = '''sk-ant-api03-[a-zA-Z0-9_-]{95}'''
+keywords = ["sk-ant-api03-"]
+
+[[rules]]
+description = "GitHub Personal Access Token"
+id = "github-pat"
+regex = '''ghp_[a-zA-Z0-9]{36}'''
+keywords = ["ghp_"]
+
+[[rules]]
+description = "GitHub Fine-grained Token"
+id = "github-fine-grained"
+regex = '''github_pat_[a-zA-Z0-9_]{82}'''
+keywords = ["github_pat_"]
+
+[[rules]]
+description = "AWS Access Key ID"
+id = "aws-access-key"
+regex = '''AKIA[0-9A-Z]{16}'''
+keywords = ["AKIA"]
+
+[[rules]]
+description = "AWS Secret Access Key"
+id = "aws-secret-key"
+regex = '''[0-9a-zA-Z/+]{40}'''
+keywords = ["AWS"]
+
+[[rules]]
+description = "Database Connection String"
+id = "database-connection"
+regex = '''(?i)(mysql|postgresql|mongodb|redis)://[^\s:]+:[^\s@]+@[^\s/]+'''
+keywords = ["mysql://", "postgresql://", "mongodb://", "redis://"]
+
+[[rules]]
+description = "JWT Secret"
+id = "jwt-secret"
+regex = '''(?i)jwt[_-]?secret[_-]?=\s*['\"][^'\"]{10,}['\"]'''
+keywords = ["jwt", "secret"]
+
+[[rules]]
+description = "Private Key"
+id = "private-key"
+regex = '''-----BEGIN (RSA |OPENSSH |DSA |EC |PGP )?PRIVATE KEY-----'''
+keywords = ["BEGIN PRIVATE KEY"]
+
+[[rules]]
+description = "Slack Token"
+id = "slack-token"
+regex = '''xox[baprs]-[0-9]{12}-[0-9]{12}-[0-9]{24}'''
+keywords = ["xoxb-", "xoxp-", "xoxa-", "xoxr-", "xoxs-"]
+
+# Allowlist for false positives
+[allowlist]
+description = "Global Allowlist"
+paths = [
+    '''node_modules''',
+    '''\.git''',
+    '''dist''',
+    '''build''',
+    '''coverage''',
+    '''\.venv''',
+    '''__pycache__''',
+    '''frontend/src/.*\.test\.''',
+    '''backend/tests/.*'''
+]
+
+# Target specific files for scanning
+[target]
+file = '''(?i)\.(env|config|key|pem|p12|pfx|json|yaml|yml|toml|py|js|ts|jsx|tsx)$'''
+cli = true
+
+# Report configuration
+[report]
+output = "console"
+filename = "gitleaks-report.json"
+
+# Git configuration
+[git]
+# Skip commits older than this many days
+historyDepth = 100
+
+# Performance tuning
+[performance]
+# Number of concurrent workers
+workers = 4

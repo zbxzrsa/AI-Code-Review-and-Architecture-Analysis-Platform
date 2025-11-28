@@ -13,7 +13,7 @@ export enum LogLevel {
 }
 
 // 当前环境配置
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = import.meta.env.MODE === 'production';
 
 // 默认日志级别：生产环境使用WARN，开发环境使用DEBUG
 let currentLogLevel = isProduction ? LogLevel.WARN : LogLevel.DEBUG;
@@ -60,11 +60,7 @@ export class Logger {
    */
   debug(message: string, ...args: any[]): void {
     if (currentLogLevel <= LogLevel.DEBUG) {
-      console.debug(
-        `${formatPrefix('DEBUG')} [${this.context}]`,
-        message,
-        ...args
-      );
+      console.debug(`${formatPrefix('DEBUG')} [${this.context}]`, message, ...args);
     }
   }
 
@@ -75,11 +71,7 @@ export class Logger {
    */
   info(message: string, ...args: any[]): void {
     if (currentLogLevel <= LogLevel.INFO) {
-      console.info(
-        `${formatPrefix('INFO')} [${this.context}]`,
-        message,
-        ...args
-      );
+      console.info(`${formatPrefix('INFO')} [${this.context}]`, message, ...args);
     }
   }
 
@@ -90,11 +82,7 @@ export class Logger {
    */
   warn(message: string, ...args: any[]): void {
     if (currentLogLevel <= LogLevel.WARN) {
-      console.warn(
-        `${formatPrefix('WARN')} [${this.context}]`,
-        message,
-        ...args
-      );
+      console.warn(`${formatPrefix('WARN')} [${this.context}]`, message, ...args);
     }
   }
 
@@ -105,11 +93,7 @@ export class Logger {
    */
   error(message: string, ...args: any[]): void {
     if (currentLogLevel <= LogLevel.ERROR) {
-      console.error(
-        `${formatPrefix('ERROR')} [${this.context}]`,
-        message,
-        ...args
-      );
+      console.error(`${formatPrefix('ERROR')} [${this.context}]`, message, ...args);
     }
   }
 

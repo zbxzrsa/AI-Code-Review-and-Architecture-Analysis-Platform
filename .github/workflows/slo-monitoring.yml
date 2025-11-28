@@ -1,0 +1,362 @@
+name: SLO Alerts and Monitoring
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run every 5 minutes
+    - cron: '*/5 * * *'
+  workflow_dispatch:
+
+jobs:
+  slo-monitoring:
+    name: SLO Monitoring
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests prometheus-client
+
+      - name: Check SLO Compliance
+        run: |
+          python3 << 'EOF'
+          import requests
+          import json
+          import sys
+          import time
+
+          # Prometheus endpoint
+          prometheus_url = "http://localhost:9090"
+
+          def check_slo_status():
+              try:
+                  response = requests.get(f"{prometheus_url}/api/v1/query", timeout=10)
+                  response.raise_for_status()
+                  
+                  # Query API response time SLO
+                  api_response_query = 'histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])))'
+                  api_response = requests.get(f"{prometheus_url}/api/v1/query", 
+                                            json={"query": api_response_query}, timeout=10)
+                  api_response.raise_for_status()
+                  api_p95 = float(api_response.json().get('data', {}).get('result', [0])[0])
+                  
+                  # Query API error rate SLO
+                  api_error_query = 'sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))'
+                  api_error = requests.get(f"{prometheus_url}/api/v1/query", 
+                                         json={"query": api_error_query}, timeout=10)
+                  api_error_rate = float(api_error.json().get('data', {}).get('result', [0])[0])
+                  
+                  # Query API availability SLO
+                  api_availability_query = 'sum(rate(http_requests_total{status!~"5.."}[5m])) / sum(rate(http_requests_total[5m]))'
+                  api_availability = requests.get(f"{prometheus_url}/api/v1/query", 
+                                               json={"query": api_availability_query}, timeout=10)
+                  api_availability = float(api_availability.json().get('data', {}).get('result', [0])[0])
+                  
+                  # Check SLO compliance
+                  api_response_ok = api_p95 <= 0.5
+                  api_error_ok = api_error_rate <= 0.01
+                  api_availability_ok = api_availability >= 0.99
+                  
+                  print(f"API Response Time P95: {api_p95:.3f}s (OK: {api_response_ok})")
+                  print(f"API Error Rate: {api_error_rate:.3%} (OK: {api_error_ok})")
+                  print(f"API Availability: {api_availability:.3%} (OK: {api_availability_ok})")
+                  
+                  # Overall API SLO status
+                  api_slo_ok = api_response_ok and api_error_ok and api_availability_ok
+                  
+                  return {
+                      'api_response_time': api_p95,
+                      'api_response_ok': api_response_ok,
+                      'api_error_rate': api_error_rate,
+                      'api_error_ok': api_error_ok,
+                      'api_availability': api_availability,
+                      'api_availability_ok': api_availability_ok,
+                      'api_slo_ok': api_slo_ok
+                  }
+                  
+              except Exception as e:
+                  print(f"Error checking SLO status: {e}")
+                  return None
+
+          # Check SLO status
+          slo_status = check_slo_status()
+
+          if slo_status:
+              print("✅ All SLOs are within targets")
+              sys.exit(0)
+          else:
+              print("❌ SLO violations detected")
+              print(f"API Response Time P95: {slo_status['api_response_time']:.3f}s")
+              print(f"API Error Rate: {slo_status['api_error_rate']:.3%}")
+              print(f"API Availability: {slo_status['api_availability']:.3%}")
+              sys.exit(1)
+          EOF
+
+      - name: Generate SLO Report
+        run: |
+          python3 << 'EOF'
+          import requests
+          import json
+          from datetime import datetime, timedelta
+
+          # Prometheus endpoint
+          prometheus_url = "http://localhost:9090"
+
+          def get_slo_metrics():
+              metrics = {}
+              
+              # API metrics
+              try:
+                  # Response time metrics
+                  api_response_query = 'histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1h])))'
+                  api_response = requests.get(f"{prometheus_url}/api/v1/query", 
+                                            json={"query": api_response_query}, timeout=10)
+                  api_p95 = float(api_response.json().get('data', {}).get('result', [0])[0])
+                  
+                  api_response_p50 = requests.get(f"{prometheus_url}/api/v1/query", 
+                                            json={"query": 'histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[1h])))')
+                  api_response_p50 = float(api_response.json().get('data', {}).get('result', [0])[0])
+                  
+                  # Error rate metrics
+                  api_error_query = 'sum(rate(http_requests_total{status=~"5.."}[1h])) / sum(rate(http_requests_total[1h]))'
+                  api_error = requests.get(f"{prometheus_url}/api/v1/query", 
+                                         json={"query": api_error_query}, timeout=10)
+                  api_error_rate = float(api_error.json().get('data', {}).get('result', [0])[0])
+                  
+                  # Availability metrics
+                  api_availability_query = 'sum(rate(http_requests_total{status!~"5.."}[1h])) / sum(rate(http_requests_total[1h]))'
+                  api_availability = requests.get(f"{prometheus_url}/api/v1/query", 
+                                               json={"query": api_availability_query}, timeout=10)
+                  api_availability = float(api_availability.json().get('data', {}).get('result', [0])[0])
+                  
+                  metrics['api'] = {
+                      'response_time_p95': api_p95,
+                      'response_time_p50': api_response_p50,
+                      'error_rate': api_error_rate,
+                      'availability': api_availability
+                  }
+                  
+              except Exception as e:
+                  print(f"Error getting API metrics: {e}")
+                  return metrics
+              
+              # System metrics
+              try:
+                  # Memory usage
+                  memory_query = '(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100'
+                  memory = requests.get(f"{prometheus_url}/api/v1/query", 
+                                       json={"query": memory_query}, timeout=10)
+                  memory_usage = float(memory.json().get('data', {}).get('result', [0])[0])
+                  
+                  # CPU usage
+                  cpu_query = '100 - (avg by (instance) (100 - (avg by (instance) irate(node_cpu_seconds_total{mode="idle"}[1h]))))'
+                  cpu = requests.get(f"{prometheus_url}/api/v1/query", 
+                                     json={"query": cpu_query}, timeout=10)
+                  cpu_usage = float(cpu.json().get('data', {}).get('result', [0])[0])
+                  
+                  # Disk usage
+                  disk_query = '(1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100'
+                  disk = requests.get(f"{prometheus_url}/api/v1/query", 
+                                     json={"query": disk_query}, timeout=10)
+                  disk_usage = float(disk.json().get('data', {}).get('result', [0])[0])
+                  
+                  metrics['system'] = {
+                      'memory_usage': memory_usage,
+                      'cpu_usage': cpu_usage,
+                      'disk_usage': disk_usage
+                  }
+                  
+              except Exception as e:
+                  print(f"Error getting system metrics: {e}")
+                  return metrics
+              
+              return metrics
+
+          # Generate report
+          metrics = get_slo_metrics()
+          timestamp = datetime.now().isoformat()
+
+          report = {
+              'timestamp': timestamp,
+              'slo_status': {
+                  'api_response_time': {
+                      'current': metrics['api']['response_time_p95'],
+                      'target': 0.5,
+                      'status': 'OK' if metrics['api']['response_time_p95'] <= 0.5 else 'VIOLATION'
+                  },
+                  'api_error_rate': {
+                      'current': metrics['api']['error_rate'],
+                      'target': 0.01,
+                      'status': 'OK' if metrics['api']['error_rate'] <= 0.01 else 'VIOLATION'
+                  },
+                  'api_availability': {
+                      'current': metrics['api']['availability'],
+                      'target': 0.99,
+                      'status': 'OK' if metrics['api']['availability'] >= 0.99 else 'VIOLATION'
+                  }
+              },
+              'system_metrics': metrics['system'],
+              'recommendations': []
+          }
+
+          # Add recommendations based on violations
+          if not report['slo_status']['api_response_time']['status']:
+              report['recommendations'].append("API response time is above 500ms P95 target")
+
+          if not report['slo_status']['api_error_rate']['status']:
+              report['recommendations'].append("API error rate is above 1% target")
+
+          if not report['slo_status']['api_availability']['status']:
+              report['recommendations'].append("API availability is below 99% target")
+
+          if metrics['system']['memory_usage'] > 90:
+              report['recommendations'].append("Memory usage is above 90%")
+
+          if metrics['system']['cpu_usage'] > 80:
+              report['recommendations'].append("CPU usage is above 80%")
+
+          if metrics['system']['disk_usage'] > 80:
+              report['recommendations'].append("Disk usage is above 80%")
+
+          # Save report
+          with open('slo-report.json', 'w') as f:
+              json.dump(report, f, indent=2)
+
+          print(f"SLO report generated at {timestamp}")
+          print(f"Overall SLO Status: {'COMPLIANT' if all(v['status'] == 'OK' for v in report['slo_status'].values()) else 'VIOLATION'}")
+          EOF
+
+      - name: Upload SLO Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: slo-report
+          path: slo-report.json
+          retention-days: 90
+
+      - name: Check SLO Status
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+
+          try:
+              with open('slo-report.json', 'r') as f:
+                  report = json.load(f)
+              
+              # Check if any SLO violations
+              violations = []
+              for service, status in report['slo_status'].items():
+                  if status['status'] == 'VIOLATION':
+                      violations.append(f"{service}: {status['status']}")
+              
+              if violations:
+                  print(f"❌ SLO Violations: {', '.join(violations)}")
+                  sys.exit(1)
+              else:
+                  print("✅ All SLOs are compliant")
+                  sys.exit(0)
+                  
+          except FileNotFoundError:
+              print("No SLO report found")
+              sys.exit(0)
+          except Exception as e:
+              print(f"Error checking SLO status: {e}")
+              sys.exit(1)
+          EOF
+
+      - name: Create SLO Badge
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+
+          try:
+              with open('slo-report.json', 'r') as f:
+                  report = json.load(f)
+              
+              # Calculate overall compliance
+              total_checks = len(report['slo_status'])
+              compliant_checks = sum(1 for status in report['slo_status'].values() if status['status'] == 'OK')
+              compliance_percentage = (compliant_checks / total_checks) * 100
+              
+              # Create badge color
+              if compliance_percentage >= 95:
+                  color = 'brightgreen'
+                  status = 'passing'
+              elif compliance_percentage >= 80:
+                  color = 'yellow'
+                  status = 'passing'
+              else:
+                  color = 'red'
+                  status = 'failing'
+              
+              badge_url = f"https://img.shields.io/badge/SLO-{status}-{color}.svg"
+              
+              print(f"SLO Compliance: {compliance_percentage:.1f}%")
+              print(f"Badge URL: {badge_url}")
+              
+          except FileNotFoundError:
+              print("No SLO report found")
+              sys.exit(1)
+          except Exception as e:
+              print(f"Error creating badge: {e}")
+              sys.exit(1)
+          EOF
+
+      - name: Update GitHub Status
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            try {
+              const report = JSON.parse(fs.readFileSync('slo-report.json', 'utf8'));
+              
+              // Calculate overall compliance
+              total_checks = Object.keys(report['slo_status']).length;
+              compliant_checks = Object.values(report['slo_status']).filter(status => status === 'OK').length;
+              compliance_percentage = Math.round((compliant_checks / total_checks) * 100);
+              
+              const comment = `## 📊 SLO Compliance Report
+              
+              ### Overall Status
+              **Compliance**: ${compliance_percentage}% (${compliant_checks}/${total_checks})
+              
+              ### Service Level Objectives
+              ${Object.entries(report['slo_status']).map(([service, status]) => 
+                `- **${service}**: ${status['status']} (${status['current']}/${status['target']})`
+              ).join('\n')}
+              
+              ${report['recommendations'].length > 0 ? `
+              ### Recommendations
+              ${report['recommendations'].map(rec => `- ${rec}`).join('\n')}
+              ` : ''}
+              
+              ---
+              *Report generated by SLO monitoring workflow*`;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+              
+            } catch (error) {
+              console.log('Error creating PR comment:', error.message);
+            }

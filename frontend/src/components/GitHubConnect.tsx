@@ -1,8 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Card, Form, Input, Button, message, Spin, List, Avatar, Typography, Tag, Space } from 'antd';
+import {
+  Card,
+  Form,
+  Input,
+  Button,
+  message,
+  Spin,
+  List,
+  Avatar,
+  Typography,
+  Tag,
+  Space,
+} from 'antd';
 import { GithubOutlined, StarOutlined, ForkOutlined, BranchesOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
- 
 
 const { Title, Text } = Typography;
 
@@ -26,7 +37,7 @@ const GitHubConnect: React.FC = () => {
   const [connected, setConnected] = useState(false);
   const [oauthCode, setOauthCode] = useState<string | null>(null);
 
-  const clientId = process.env.REACT_APP_GITHUB_CLIENT_ID || 'demo-client-id';
+  const clientId = import.meta.env.VITE_GITHUB_CLIENT_ID || 'demo-client-id';
   const redirectUri = `${window.location.origin}/github-connect`;
 
   const handleConnect = () => {
@@ -49,7 +60,7 @@ const GitHubConnect: React.FC = () => {
           description: 'Intelligent code review tool using AI to detect issues',
           stargazers_count: 128,
           forks_count: 32,
-          language: 'TypeScript'
+          language: 'TypeScript',
         },
         {
           id: 2,
@@ -59,7 +70,7 @@ const GitHubConnect: React.FC = () => {
           description: 'Software architecture analyzer to help understand complex systems',
           stargazers_count: 85,
           forks_count: 17,
-          language: 'Python'
+          language: 'Python',
         },
         {
           id: 3,
@@ -69,8 +80,8 @@ const GitHubConnect: React.FC = () => {
           description: 'Code security scanner detecting potential vulnerabilities',
           stargazers_count: 56,
           forks_count: 12,
-          language: 'JavaScript'
-        }
+          language: 'JavaScript',
+        },
       ];
 
       setRepositories(mockRepositories);
@@ -100,18 +111,18 @@ const GitHubConnect: React.FC = () => {
 
   const getLanguageColor = (language: string) => {
     const colors: Record<string, string> = {
-      'TypeScript': '#3178c6',
-      'JavaScript': '#f1e05a',
-      'Python': '#3572A5',
-      'Java': '#b07219',
-      'Go': '#00ADD8',
+      TypeScript: '#3178c6',
+      JavaScript: '#f1e05a',
+      Python: '#3572A5',
+      Java: '#b07219',
+      Go: '#00ADD8',
       'C#': '#178600',
-      'PHP': '#4F5D95',
-      'Ruby': '#701516',
-      'Swift': '#F05138',
-      'Kotlin': '#A97BFF'
+      PHP: '#4F5D95',
+      Ruby: '#701516',
+      Swift: '#F05138',
+      Kotlin: '#A97BFF',
     };
-    
+
     return colors[language] || '#8e8e8e';
   };
 
@@ -121,27 +132,24 @@ const GitHubConnect: React.FC = () => {
         <GithubOutlined /> GitHub Connect
       </Title>
       <Typography.Paragraph type="secondary">
-        Authenticate with OAuth, sync repositories, and trigger automated analysis without
-        leaving the platform.
+        Authenticate with OAuth, sync repositories, and trigger automated analysis without leaving
+        the platform.
       </Typography.Paragraph>
 
       {!connected ? (
         <Card>
           <Form layout="vertical">
-            <Form.Item 
-              label="GitHub Username"
-              required
-            >
-              <Input 
+            <Form.Item label="GitHub Username" required>
+              <Input
                 placeholder="Enter GitHub username"
                 value={username}
                 onChange={e => setUsername(e.target.value)}
                 prefix={<GithubOutlined />}
               />
             </Form.Item>
-            
+
             <Form.Item label="GitHub Access Token (optional)">
-              <Input.Password 
+              <Input.Password
                 placeholder="Used to access private repositories"
                 value={token}
                 onChange={e => setToken(e.target.value)}
@@ -163,8 +171,8 @@ const GitHubConnect: React.FC = () => {
             </Form.Item>
 
             <Form.Item>
-              <Button 
-                type="primary" 
+              <Button
+                type="primary"
                 onClick={handleConnect}
                 loading={loading}
                 icon={<GithubOutlined />}
@@ -181,18 +189,15 @@ const GitHubConnect: React.FC = () => {
               <Avatar size={64} icon={<GithubOutlined />} />
               <div>
                 <Title level={4}>{username}</Title>
-                <Button 
-                  type="link" 
-                  onClick={() => setConnected(false)}
-                >
+                <Button type="link" onClick={() => setConnected(false)}>
                   Disconnect
                 </Button>
               </div>
             </Space>
           </Card>
-          
+
           <Title level={4}>Repository List</Title>
-          
+
           {loading ? (
             <div style={{ textAlign: 'center', padding: '30px 0' }}>
               <Spin size="large" />
@@ -210,14 +215,14 @@ const GitHubConnect: React.FC = () => {
                     <Space key="forks">
                       <ForkOutlined /> {repo.forks_count}
                     </Space>,
-                    <Button 
-                      key="analyze" 
+                    <Button
+                      key="analyze"
                       type="primary"
                       onClick={() => handleAnalyzeRepository(repo)}
                       icon={<BranchesOutlined />}
                     >
                       {'Analyze Repository'}
-                    </Button>
+                    </Button>,
                   ]}
                 >
                   <List.Item.Meta
@@ -229,9 +234,7 @@ const GitHubConnect: React.FC = () => {
                     description={
                       <Space direction="vertical">
                         <Text>{repo.description}</Text>
-                        <Tag color={getLanguageColor(repo.language)}>
-                          {repo.language}
-                        </Tag>
+                        <Tag color={getLanguageColor(repo.language)}>{repo.language}</Tag>
                       </Space>
                     }
                   />
@@ -249,7 +252,7 @@ const GitHubConnect: React.FC = () => {
             'Switch between providers using the AI chat dock after connecting GitHub.',
             'Export repository metadata to Projects to create guardrails automatically.',
           ]}
-          renderItem={(item) => (
+          renderItem={item => (
             <List.Item>
               <Text>{item}</Text>
             </List.Item>

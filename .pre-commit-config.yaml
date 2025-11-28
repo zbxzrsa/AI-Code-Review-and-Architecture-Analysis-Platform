@@ -1,4 +1,5 @@
 repos:
+  # Existing hooks...
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
@@ -17,6 +18,30 @@ repos:
       - id: name-tests-test
         args: [--pytest-test-first]
 
+  # Enhanced Secret Detection - Gitleaks
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.2
+    hooks:
+      - id: gitleaks
+        args: [--config, .gitleaks.toml, --verbose]
+
+  # Enhanced Secret Detection - detect-secrets (existing)
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: [--baseline, .secrets.baseline, --all-files]
+
+  # TruffleHog for additional secret detection
+  - repo: https://github.com/trufflesecurity/trufflehog
+    rev: v3.63.9
+    hooks:
+      - id: trufflehog
+        entry: trufflehog git --only-verified --json
+        language: system
+        pass_filenames: false
+
+  # Python hooks...
   - repo: https://github.com/psf/black
     rev: 23.11.0
     hooks:
@@ -51,12 +76,6 @@ repos:
         args: [-r, backend/, -f, json, -o, bandit-report.json]
         pass_filenames: false
 
-  - repo: https://github.com/Yelp/detect-secrets
-    rev: v1.4.0
-    hooks:
-      - id: detect-secrets
-        args: [--baseline, .secrets.baseline]
-
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.3.0
     hooks:
@@ -75,6 +94,7 @@ repos:
       - id: python-safety-dependencies-check
         files: requirements.*\.txt$|pyproject\.toml$
 
+  # Frontend hooks...
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.54.0
     hooks:
@@ -83,8 +103,8 @@ repos:
         types: [file]
         additional_dependencies:
           - eslint@8.54.0
-          - "@typescript-eslint/eslint-plugin@6.12.0"
-          - "@typescript-eslint/parser@6.12.0"
+          - '@typescript-eslint/eslint-plugin@6.12.0'
+          - '@typescript-eslint/parser@6.12.0'
           - eslint-plugin-react@7.33.0
           - eslint-plugin-react-hooks@4.6.0
           - eslint-plugin-jsx-a11y@6.8.0
@@ -97,6 +117,7 @@ repos:
         files: frontend/.*\.(js|jsx|ts|tsx|json|css|md)$
         types_or: [javascript, jsx, ts, tsx, json, css, markdown]
 
+  # Commit message hooks...
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v3.0.0
     hooks:
@@ -104,6 +125,7 @@ repos:
         stages: [commit-msg]
         args: [feat, fix, docs, style, refactor, perf, test, ci, build, chore, revert]
 
+  # Local hooks...
   - repo: local
     hooks:
       - id: pytest-check
@@ -131,3 +153,11 @@ repos:
         entry: yamllint
         language: system
         files: \.(yaml|yml)$
+
+      # Custom secret scanning for environment files
+      - id: scan-for-secrets
+        name: scan-for-secrets
+        entry: bash -c 'if grep -rE "(password|secret|key|token|api_key|private_key|access_key).*=.*" . --include="*.env*" --include="*.config*" --include="*.yaml*" --include="*.yml*" --exclude-dir=node_modules --exclude-dir=.git 2>/dev/null; then echo "Potential secrets found in environment files! Please review and remove."; exit 1; fi'
+        language: system
+        files: \.(env|config|yaml|yml)$
+        pass_filenames: false

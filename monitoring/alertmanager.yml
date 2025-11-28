@@ -1,0 +1,144 @@
+# Alertmanager Configuration for AI Code Review Platform
+
+global:
+  smtp_smarthost: 'localhost'
+  smtp_from: 'alerts@ai-review-platform.com'
+  smtp_auth_username: 'alerts@ai-review-platform.com'
+  smtp_auth_password: 'your-smtp-password'
+
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+route:
+  group_by: ['alertname', 'cluster', 'service']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 1h
+  receiver: 'default-receiver'
+
+  - match:
+      - alertname: APIResponseTimeHigh
+      - alertname: APIResponseTimeDegraded
+      - alertname: APIErrorRateHigh
+      - alertname: APIAvailabilityLow
+    receiver: 'critical-alerts'
+    group_wait: 5s
+    repeat_interval: 30m
+
+  - match:
+      - alertname: DatabaseConnectionHigh
+      - alertname: DatabaseConnectionErrorRate
+      - alertname: CodeAnalysisSlow
+      - alertname: CodeAnalysisFailureRate
+      - alertname: MemoryUsageCritical
+      - alertname: CPUUsageCritical
+      - alertname: DiskUsageCritical
+      - alertname: ContainerDown
+      - alertname: RedisLatencyHigh
+      - alertname: RedisMemoryUsageHigh
+    receiver: 'critical-alerts'
+    group_wait: 5s
+    repeat_interval: 15m
+
+  - match:
+      - alertname: MemoryUsageHigh
+      - alertname: CPUUsageHigh
+      - alertname: DiskUsageHigh
+      - alertname: RedisMemoryUsageHigh
+    receiver: 'warning-alerts'
+    group_wait: 30s
+    repeat_interval: 2h
+
+inhibit_rules:
+  - source_match:
+      - alertname: ContainerDown
+    target_match:
+      - alertname: APIResponseTimeHigh
+      - alertname: APIResponseTimeDegraded
+      - alertname: APIErrorRateHigh
+      - alertname: APIAvailabilityLow
+    equal: ['container', 'service']
+
+receivers:
+  - name: 'default-receiver'
+    email_configs:
+      - to: 'devops@ai-review-platform.com'
+      from: 'alerts@ai-review-platform.com'
+      smarthost: 'localhost'
+      subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}: {{ .GroupLabels.service }}'
+      body: |
+        {{ range .Alerts }}
+        Alert: {{ .Annotations.summary }}
+        Description: {{ .Annotations.description }}
+        Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+        Runbook: {{ .Annotations.runbook_url }}
+        {{ end }}
+
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'oncall@ai-review-platform.com,devops@ai-review-platform.com'
+      - from: 'alerts@ai-review-platform.com'
+      smarthost: 'localhost'
+      subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }}: {{ .GroupLabels.service }}'
+      body: |
+        {{ range .Alerts }}
+        🚨 CRITICAL ALERT 🚨
+        
+        Alert: {{ .Annotations.summary }}
+        Description: {{ .Annotations.description }}
+        Service: {{ .GroupLabels.service }}
+        SLO: {{ .GroupLabels.slo }}
+        Severity: {{ .Labels.severity }}
+        
+        Immediate action required!
+        
+        Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+        Runbook: {{ .Annotations.runbook_url }}
+        {{ end }}
+
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'devops@ai-review-platform.com'
+      - from: 'alerts@ai-review-platform.com'
+      smarthost: 'localhost'
+      subject: '⚠️ WARNING: {{ .GroupLabels.alertname }}: {{ .GroupLabels.service }}'
+      body: |
+        {{ range .Alerts }}
+        ⚠️ WARNING ALERT ⚠️
+        
+        Alert: {{ .Annotations.summary }}
+        Description: {{ .Annotations.description }}
+        Service: {{ .GroupLabels.service }}
+        SLO: {{ .GroupLabels.slo }}
+        Severity: {{ .Labels.severity }}
+        
+        Please investigate during business hours.
+        
+        Labels: {{ range .Labels.SortedPairs }}{{ .Name }}={{ .Value }} {{ end }}
+        Runbook: {{ .Annotations.runbook_url }}
+        {{ end }}
+
+  - name: 'slack-webhook'
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR-SLACK-WEBHOOK-URL'
+      channel: '#alerts'
+      title: '{{ .GroupLabels.alertname }}: {{ .GroupLabels.service }}'
+      text: |
+        {{ range .Alerts }}
+        {{ .Annotations.summary }}
+        {{ end }}
+      send_resolved: true
+      icon_emoji: ':warning:'
+
+  - name: 'pagerduty'
+    pagerduty_configs:
+      - service_key: 'YOUR-PAGERDUTY-SERVICE-KEY'
+      description: '{{ .GroupLabels.alertname }}: {{ .GroupLabels.service }}'
+      details: |
+        {{ range .Alerts }}
+        {{ .Annotations.summary }}
+        {{ .Annotations.description }}
+        {{ end }}
+      severity: '{{ .Labels.severity }}'
+      class: '{{ .Labels.severity }}'
+      group: '{{ .GroupLabels.service }}'

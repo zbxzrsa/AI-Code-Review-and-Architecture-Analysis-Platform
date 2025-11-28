@@ -116,12 +116,10 @@ export interface LoginResult {
   username: string;
 }
 
- 
-
 class ApiService {
   private client: AxiosInstance;
 
-  constructor(baseURL: string = process.env.REACT_APP_API_URL || 'http://localhost:8000') {
+  constructor(baseURL: string = import.meta.env.VITE_API_URL || 'http://localhost:8001') {
     this.client = axios.create({
       baseURL,
       timeout: 30000,
@@ -132,7 +130,7 @@ class ApiService {
 
     // 请求拦截器
     this.client.interceptors.request.use(
-      (config) => {
+      config => {
         // 添加认证token等
         const token = localStorage.getItem('auth_token');
         if (token) {
@@ -140,13 +138,13 @@ class ApiService {
         }
         return config;
       },
-      (error) => Promise.reject(error)
+      error => Promise.reject(error)
     );
 
     // 响应拦截器
     this.client.interceptors.response.use(
       (response: AxiosResponse) => response,
-      (error) => {
+      error => {
         if (error.response?.status === 401) {
           // 处理认证失败
           localStorage.removeItem('auth_token');
@@ -188,7 +186,9 @@ class ApiService {
   }
 
   // 创建项目
-  async createProject(project: Omit<Project, 'id' | 'created_at' | 'updated_at'>): Promise<ApiResponse<Project>> {
+  async createProject(
+    project: Omit<Project, 'id' | 'created_at' | 'updated_at'>
+  ): Promise<ApiResponse<Project>> {
     try {
       const response = await this.client.post('/api/v1/projects', project);
       return { success: true, data: response.data };
@@ -228,7 +228,7 @@ class ApiService {
   }
 
   // === 会话管理 API ===
-  
+
   // 获取会话列表
   async getSessions(projectId?: string): Promise<ApiResponse<AnalysisSession[]>> {
     try {
@@ -265,7 +265,10 @@ class ApiService {
   }
 
   // 更新会话
-  async updateSession(sessionId: string, updates: Partial<AnalysisSession>): Promise<ApiResponse<AnalysisSession>> {
+  async updateSession(
+    sessionId: string,
+    updates: Partial<AnalysisSession>
+  ): Promise<ApiResponse<AnalysisSession>> {
     try {
       const response = await this.client.put(`/api/v1/sessions/${sessionId}`, updates);
       return { success: true, data: response.data };
@@ -331,7 +334,9 @@ class ApiService {
   }
 
   // 获取项目文件列表
-  async getProjectFiles(projectId: string): Promise<ApiResponse<Array<{path: string, version_count: number}>>> {
+  async getProjectFiles(
+    projectId: string
+  ): Promise<ApiResponse<Array<{ path: string; version_count: number }>>> {
     try {
       const response = await this.client.get(`/api/v1/versions/files?project_id=${projectId}`);
       return { success: true, data: response.data };
@@ -343,7 +348,9 @@ class ApiService {
   // 获取文件历史
   async getFileHistory(projectId: string, filePath: string): Promise<ApiResponse<FileVersion[]>> {
     try {
-      const response = await this.client.get(`/api/v1/versions/history?project_id=${projectId}&path=${encodeURIComponent(filePath)}`);
+      const response = await this.client.get(
+        `/api/v1/versions/history?project_id=${projectId}&path=${encodeURIComponent(filePath)}`
+      );
       return { success: true, data: response.data };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -353,7 +360,10 @@ class ApiService {
   // 版本比较
   async compareVersions(version1Id: string, version2Id: string): Promise<ApiResponse<any>> {
     try {
-      const response = await this.client.post('/api/v1/versions/compare', { version1_id: version1Id, version2_id: version2Id });
+      const response = await this.client.post('/api/v1/versions/compare', {
+        version1_id: version1Id,
+        version2_id: version2Id,
+      });
       return { success: true, data: response.data };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -363,12 +373,15 @@ class ApiService {
   // === 搜索 API ===
 
   // 全文搜索
-  async search(query: string, filters?: {
-    type?: string;
-    project_id?: string;
-    date_from?: string;
-    date_to?: string;
-  }): Promise<ApiResponse<SearchResult[]>> {
+  async search(
+    query: string,
+    filters?: {
+      type?: string;
+      project_id?: string;
+      date_from?: string;
+      date_to?: string;
+    }
+  ): Promise<ApiResponse<SearchResult[]>> {
     try {
       const params = new URLSearchParams({ q: query });
       if (filters) {
@@ -386,7 +399,9 @@ class ApiService {
   // 获取搜索建议
   async getSearchSuggestions(query: string): Promise<ApiResponse<string[]>> {
     try {
-      const response = await this.client.get(`/api/v1/search/suggestions?q=${encodeURIComponent(query)}`);
+      const response = await this.client.get(
+        `/api/v1/search/suggestions?q=${encodeURIComponent(query)}`
+      );
       return { success: true, data: response.data };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -402,8 +417,6 @@ class ApiService {
       return { success: false, error: error.message };
     }
   }
-
-  
 
   // === 基线管理 API ===
 
@@ -444,7 +457,10 @@ class ApiService {
   }
 
   // 更新基线
-  async updateBaseline(baselineId: string, updates: Partial<Baseline>): Promise<ApiResponse<Baseline>> {
+  async updateBaseline(
+    baselineId: string,
+    updates: Partial<Baseline>
+  ): Promise<ApiResponse<Baseline>> {
     try {
       const response = await this.client.put(`/api/v1/baselines/${baselineId}`, updates);
       return { success: true, data: response.data };
@@ -502,9 +518,16 @@ class ApiService {
   async login(payload: LoginPayload): Promise<ApiResponse<LoginResult>> {
     try {
       const response = await this.client.post('/api/v1/auth/login', payload);
-      const data = response.data as LoginResult;
-      localStorage.setItem('auth_token', data.access_token);
-      return { success: true, data };
+      const data = response.data;
+      // Handle both token formats (access_token or token)
+      const token = data.access_token || data.token;
+      const loginResult: LoginResult = {
+        access_token: token,
+        token_type: 'Bearer',
+        username: data.user?.username || payload.username,
+      };
+      localStorage.setItem('auth_token', token);
+      return { success: true, data: loginResult };
     } catch (error: any) {
       return { success: false, error: error.message };
     }

@@ -1,0 +1,392 @@
+# SLO Rules for AI Code Review Platform
+
+groups:
+  - name: slo.rules
+    rules:
+      # API Response Time SLO
+      - alert: APIResponseTimeHigh
+        expr: |
+          (
+            histogram_quantile(0.95, 
+              sum(rate(http_request_duration_seconds_bucket[5m]))
+          ) > 0.5
+          )
+        for: 5m
+        labels:
+          severity: critical
+          slo: api_response_time
+          service: ai_review_api
+        annotations:
+          summary: 'API 95th percentile response time > 500ms'
+          description: '95% of API requests are taking longer than 500ms'
+
+      - alert: APIResponseTimeDegraded
+        expr: |
+          (
+            histogram_quantile(0.95, 
+              sum(rate(http_request_duration_seconds_bucket[5m]))
+          ) > 0.3
+          )
+        for: 5m
+        labels:
+          severity: warning
+          slo: api_response_time
+          service: ai_review_api
+        annotations:
+          summary: 'API 95th percentile response time > 300ms'
+          description: '95% of API requests are taking longer than 300ms'
+
+      # API Error Rate SLO
+      - alert: APIErrorRateHigh
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) 
+            / 
+            sum(rate(http_requests_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          slo: api_error_rate
+          service: ai_review_api
+        annotations:
+          summary: 'API error rate > 1%'
+          description: 'More than 1% of API requests are failing'
+
+      - alert: APIErrorRateDegraded
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) 
+            / 
+            sum(rate(http_requests_total[5m]))
+          ) > 0.005
+        for: 5m
+        labels:
+          severity: warning
+          slo: api_error_rate
+          service: ai_review_api
+        annotations:
+          summary: 'API error rate > 0.5%'
+          description: 'More than 0.5% of API requests are failing'
+
+      # API Availability SLO
+      - alert: APIAvailabilityLow
+        expr: |
+          (
+            sum(rate(http_requests_total{status!~"5.."}[5m])) 
+            / 
+            sum(rate(http_requests_total[5m]))
+          ) < 0.99
+        for: 5m
+        labels:
+          severity: critical
+          slo: api_availability
+          service: ai_review_api
+        annotations:
+          summary: 'API availability < 99%'
+          description: 'Less than 99% of API requests are successful'
+
+      # Database Connection SLO
+      - alert: DatabaseConnectionHigh
+        expr: |
+          (
+            histogram_quantile(0.95, 
+              sum(rate(db_connection_duration_seconds_bucket[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          slo: database_connection
+          service: postgresql
+        annotations:
+          summary: 'Database 95th percentile connection time > 100ms'
+          description: '95% of database connections are taking longer than 100ms'
+
+      - alert: DatabaseConnectionErrorRate
+        expr: |
+          (
+            sum(rate(db_connection_errors_total[5m])) 
+            / 
+            sum(rate(db_connections_total[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          slo: database_connection
+          service: postgresql
+        annotations:
+          summary: 'Database connection error rate > 1%'
+          description: 'More than 1% of database connections are failing'
+
+      # Code Analysis Performance SLO
+      - alert: CodeAnalysisSlow
+        expr: |
+          (
+            histogram_quantile(0.95, 
+              sum(rate(code_analysis_duration_seconds_bucket[5m]))
+          ) > 30
+        for: 5m
+        labels:
+          severity: warning
+          slo: code_analysis_performance
+          service: code_analysis
+        annotations:
+          summary: 'Code analysis 95th percentile duration > 30s'
+          description: '95% of code analysis jobs are taking longer than 30 seconds'
+
+      - alert: CodeAnalysisFailureRate
+        expr: |
+          (
+            sum(rate(code_analysis_failures_total[5m])) 
+            / 
+            sum(rate(code_analysis_total[5m]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          slo: code_analysis_performance
+          service: code_analysis
+        annotations:
+          summary: 'Code analysis failure rate > 5%'
+          description: 'More than 5% of code analysis jobs are failing'
+
+      # Memory Usage SLO
+      - alert: MemoryUsageHigh
+        expr: |
+          (
+            (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          slo: memory_usage
+          service: system
+        annotations:
+          summary: 'Memory usage > 90%'
+          description: 'System is using more than 90% of available memory'
+
+      - alert: MemoryUsageCritical
+        expr: |
+          (
+            (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes))
+          ) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          slo: memory_usage
+          service: system
+        annotations:
+          summary: 'Memory usage > 95%'
+          description: 'System is using more than 95% of available memory'
+
+      # CPU Usage SLO
+      - alert: CPUUsageHigh
+        expr: |
+          (
+            100 - (avg by (instance) (100 - (avg by (instance) irate(node_cpu_seconds_total{mode="idle"}[5m]))))
+          ) > 80
+        for: 5m
+        labels:
+          severity: warning
+          slo: cpu_usage
+          service: system
+        annotations:
+          summary: 'CPU usage > 80%'
+          description: 'System CPU usage is above 80%'
+
+      - alert: CPUUsageCritical
+        expr: |
+          (
+            100 - (avg by (instance) (100 - (avg by (instance) irate(node_cpu_seconds_total{mode="idle"}[5m]))))
+          ) > 95
+        for: 5m
+        labels:
+          severity: critical
+          slo: cpu_usage
+          service: system
+        annotations:
+          summary: 'CPU usage > 95%'
+          description: 'System CPU usage is above 95%'
+
+      # Disk Usage SLO
+      - alert: DiskUsageHigh
+        expr: |
+          (
+            (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}))
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          slo: disk_usage
+          service: system
+        annotations:
+          summary: 'Disk usage > 80%'
+          description: 'Root disk usage is above 80%'
+
+      - alert: DiskUsageCritical
+        expr: |
+          (
+            (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}))
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          slo: disk_usage
+          service: system
+        annotations:
+          summary: 'Disk usage > 90%'
+          description: 'Root disk usage is above 90%'
+
+      # Container Health SLO
+      - alert: ContainerDown
+        expr: |
+          up{job=~"ai-review-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          slo: container_health
+          service: containers
+        annotations:
+          summary: 'Container is down'
+          description: 'One or more containers are not responding'
+
+      # Redis Performance SLO
+      - alert: RedisLatencyHigh
+        expr: |
+          (
+            histogram_quantile(0.95, 
+              sum(rate(redis_slowlog_duration_seconds_bucket[5m]))
+          ) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          slo: redis_performance
+          service: redis
+        annotations:
+          summary: 'Redis 95th percentile latency > 10ms'
+          description: '95% of Redis operations are taking longer than 10ms'
+
+      - alert: RedisMemoryUsageHigh
+        expr: |
+          (
+            redis_memory_used_bytes / redis_memory_max_bytes
+          ) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          slo: redis_performance
+          service: redis
+        annotations:
+          summary: 'Redis memory usage > 80%'
+          description: 'Redis is using more than 80% of allocated memory'
+
+  - name: slo.rules
+    intervals:
+      - name: slo_interval
+        interval: 5m
+
+    recording_rules:
+      # API SLO Metrics
+      - record: slo:http_requests:rate5m
+        expr: sum(rate(http_requests_total[5m]))
+        labels:
+          slo: api_requests
+
+      - record: slo:http_requests:success_rate5m
+        expr: |
+          sum(rate(http_requests_total{status!~"5.."}[5m]))
+          /
+          sum(rate(http_requests_total[5m]))
+        labels:
+          slo: api_requests
+
+      - record: slo:http_response_time:p95:5m
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[5m]))
+        labels:
+          slo: api_response_time
+
+      - record: slo:http_response_time:p50:5m
+        expr: |
+          histogram_quantile(0.50, 
+            sum(rate(http_request_duration_seconds_bucket[5m]))
+        labels:
+          slo: api_response_time
+
+      # Database SLO Metrics
+      - record: slo:db_connections:rate5m
+        expr: sum(rate(db_connections_total[5m]))
+        labels:
+          slo: database_connections
+
+      - record: slo:db_connection_errors:rate5m
+        expr: sum(rate(db_connection_errors_total[5m]))
+        labels:
+          slo: database_connections
+
+      - record: slo:db_connection_time:p95:5m
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(db_connection_duration_seconds_bucket[5m]))
+        labels:
+          slo: database_connection
+
+      # Code Analysis SLO Metrics
+      - record: slo:code_analysis:rate5m
+        expr: sum(rate(code_analysis_total[5m]))
+        labels:
+          slo: code_analysis
+
+      - record: slo:code_analysis:success_rate5m
+        expr: |
+          sum(rate(code_analysis_success_total[5m]))
+          /
+          sum(rate(code_analysis_total[5m]))
+        labels:
+          slo: code_analysis
+
+      - record: slo:code_analysis:duration:p95:5m
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(code_analysis_duration_seconds_bucket[5m]))
+        labels:
+          slo: code_analysis
+
+      # System SLO Metrics
+      - record: slo:memory:usage_percent5m
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+        labels:
+          slo: memory_usage
+
+      - record: slo:cpu:usage_percent5m
+        expr: |
+          100 - (avg by (instance) (100 - (avg by (instance) irate(node_cpu_seconds_total{mode="idle"}[5m]))))
+        labels:
+          slo: cpu_usage
+
+      - record: slo:disk:usage_percent5m
+        expr: |
+          (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100
+        labels:
+          slo: disk_usage
+
+      - record: slo:container:up_count5m
+        expr: |
+          sum(up{job=~"ai-review-.*"})
+        labels:
+          slo: container_health
+
+      - record: slo:redis:latency:p95:5m
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(redis_slowlog_duration_seconds_bucket[5m]))
+        labels:
+          slo: redis_performance
+
+      - record: slo:redis:memory_usage_percent5m
+        expr: |
+          (redis_memory_used_bytes / redis_memory_max_bytes) * 100
+        labels:
+          slo: redis_performance

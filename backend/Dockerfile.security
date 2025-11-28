@@ -1,0 +1,29 @@
+# Container Security Baseline
+# CIS Docker Benchmark Level 1 - Ubuntu 22.04 LTS
+
+# Base Image
+FROM ubuntu:22.04
+
+# Security Updates
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gnupg \
+    lsb-release
+
+# Non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+USER appuser
+
+# Secure working directory
+WORKDIR /app
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Labels for security
+LABEL maintainer="security-team@company.com" \
+      version="1.0.0" \
+      description="AI Code Review Platform - Security Hardened"

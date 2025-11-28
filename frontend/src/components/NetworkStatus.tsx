@@ -1,13 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Tag, Button, Space } from 'antd';
- 
 
 // You can set a custom URL via env var `REACT_APP_CONNECTIVITY_CHECK_URL`
 const DEFAULT_CHECK_URL = 'https://www.gstatic.com/generate_204';
 
-const checkUrl = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_CONNECTIVITY_CHECK_URL)
-  ? process.env.REACT_APP_CONNECTIVITY_CHECK_URL!
-  : DEFAULT_CHECK_URL;
+const checkUrl = import.meta.env.VITE_CONNECTIVITY_CHECK_URL || DEFAULT_CHECK_URL;
 
 async function checkConnectivity(): Promise<boolean> {
   try {
@@ -51,7 +48,9 @@ const NetworkStatus: React.FC = () => {
   return (
     <Space>
       {tag}
-      <Button size="small" onClick={runCheck}>{'Retry'}</Button>
+      <Button size="small" onClick={runCheck}>
+        {'Retry'}
+      </Button>
     </Space>
   );
 };

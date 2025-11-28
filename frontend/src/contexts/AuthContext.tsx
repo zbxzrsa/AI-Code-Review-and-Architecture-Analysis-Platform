@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
+import { apiService } from '../services/api';
 
 interface User {
   id: string;
@@ -19,7 +20,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const shouldAutoSignIn = process.env.REACT_APP_REQUIRE_LOGIN !== 'true';
+  const shouldAutoSignIn = import.meta.env.VITE_REQUIRE_LOGIN !== 'true';
 
   // 初始化时检查本地存储中的用户信息
   useEffect(() => {
@@ -37,7 +38,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const demoUser = {
         id: 'demo',
         username: 'demo_user',
-        email: 'demo@example.com'
+        email: 'demo@example.com',
       };
       setUser(demoUser);
       setIsAuthenticated(true);
@@ -49,19 +50,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 登录函数
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // 在实际应用中，这里应该调用API进行身份验证
-      // 这里简化为模拟成功登录
-      const mockUser = {
-        id: '1',
-        username: email.split('@')[0],
-        email
-      };
-      
-      setUser(mockUser);
-      setIsAuthenticated(true);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      localStorage.setItem('auth_token', 'demo-token');
-      return true;
+      const result = await apiService.login({ username: email, password });
+      if (result.success && result.data) {
+        const user = {
+          id: result.data.username || '1',
+          username: result.data.username,
+          email,
+        };
+
+        setUser(user);
+        setIsAuthenticated(true);
+        localStorage.setItem('user', JSON.stringify(user));
+        return true;
+      }
+      return false;
     } catch (error) {
       console.error('Login failed:', error);
       return false;
@@ -76,9 +78,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const mockUser = {
         id: Date.now().toString(),
         username,
-        email
+        email,
       };
-      
+
       setUser(mockUser);
       setIsAuthenticated(true);
       localStorage.setItem('user', JSON.stringify(mockUser));

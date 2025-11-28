@@ -7,7 +7,7 @@ import os
 import re
 import subprocess
 import json
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pathlib import Path
 
 try:
@@ -26,37 +26,52 @@ class StaticAnalyzer:
     
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.rules_enabled = config.get('rules', [])
+        self.rules_enabled = config.get('rules', ['security', 'quality', 'complexity'])
         self.severity_thresholds = config.get('severity_thresholds', {
             'critical': 0,
             'high': 5,
             'medium': 20,
             'low': 50
         })
+        self.language = config.get('language', 'python')
+        self.tools = self._get_available_tools()
     
     def analyze_file(self, file_path: str) -> List[Dict[str, Any]]:
         """Analyze a single file for static issues"""
         findings = []
         
+        # Detect language if not set
+        if not self.language or self.language == 'auto':
+            self.language = self._detect_language_from_path(file_path)
+            self.tools = self._get_available_tools()
+        
         try:
-            # Security analysis with Bandit
-            if 'security' in self.rules_enabled and bandit_manager:
-                security_findings = self._run_bandit_analysis(file_path)
-                findings.extend(security_findings)
+            # Language-specific analysis
+            if self.language == 'python':
+                # Security analysis with Bandit
+                if 'security' in self.rules_enabled and bandit_manager:
+                    security_findings = self._run_bandit_analysis(file_path)
+                    findings.extend(security_findings)
+                
+                # Code quality analysis with Pylint
+                if 'quality' in self.rules_enabled and PylintRun:
+                    quality_findings = self._run_pylint_analysis(file_path)
+                    findings.extend(quality_findings)
+                
+                # Complexity analysis with Radon
+                if 'complexity' in self.rules_enabled and cc_visit:
+                    complexity_findings = self._run_complexity_analysis(file_path)
+                    findings.extend(complexity_findings)
             
-            # Code quality analysis with Pylint
-            if 'quality' in self.rules_enabled and PylintRun:
-                quality_findings = self._run_pylint_analysis(file_path)
-                findings.extend(quality_findings)
+            elif self.language in ['javascript', 'typescript']:
+                # ESLint analysis for JS/TS
+                if 'quality' in self.rules_enabled and 'eslint' in self.tools:
+                    eslint_findings = self._run_eslint_analysis(file_path)
+                    findings.extend(eslint_findings)
             
-            # Complexity analysis with Radon
-            if 'complexity' in self.rules_enabled and cc_visit:
-                complexity_findings = self._run_complexity_analysis(file_path)
-                findings.extend(complexity_findings)
-            
-            # Pattern-based analysis
+            # Pattern-based analysis (always available)
             pattern_findings = self._run_pattern_analysis(file_path)
-                findings.extend(pattern_findings)
+            findings.extend(pattern_findings)
             
         except Exception as e:
             findings.append({
@@ -104,7 +119,7 @@ class StaticAnalyzer:
                         'file_path': file_path,
                         'line_number': issue.get('line_number', 0),
                         'end_line_number': issue.get('end_line_number', 0),
-                        'code_snippet': self._get_code_snippet(file_path, issue.get('line_number', 0)),
+                        'code_snippet': self._get_code_snippet(file_path, issue.get('line_number', 0), issue.get('end_line_number', 0)),
                         'recommendation': self._get_security_recommendation(issue)
                     })
             
@@ -320,6 +335,138 @@ class StaticAnalyzer:
                 'file_path': file_path,
             }]
     
+    def _get_available_tools(self) -> List[str]:
+        """Get available tools for detected language"""
+        # Detect language from file extension if not specified
+        if not self.language or self.language == 'auto':
+            self.language = self._detect_language_from_config()
+        
+        # Language-specific tools
+        language_tools = {
+            'python': ['pylint', 'bandit', 'radon'],
+            'javascript': ['eslint', 'jshint'],
+            'typescript': ['eslint', 'tsc'],
+            'java': ['checkstyle', 'spotbugs', 'pmd'],
+            'cpp': ['cppcheck', 'clang-tidy'],
+            'c': ['cppcheck', 'clang-tidy'],
+            'go': ['golint', 'go vet'],
+            'rust': ['clippy', 'rustfmt']
+        }
+        
+        available_tools = language_tools.get(self.language, [])
+        
+        # Filter by what's actually available
+        actual_tools = []
+        if self.language == 'python':
+            if PylintRun:
+                actual_tools.append('pylint')
+            if bandit_manager:
+                actual_tools.append('bandit')
+            if cc_visit:
+                actual_tools.append('radon')
+        elif self.language in ['javascript', 'typescript']:
+            # Check for ESLint
+            try:
+                subprocess.run(['eslint', '--version'], capture_output=True, check=True)
+                actual_tools.append('eslint')
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                pass
+        
+        return actual_tools or ['pattern']  # Always have pattern analysis
+    
+    def _detect_language_from_config(self) -> str:
+        """Detect language from config or default to python"""
+        return self.config.get('language', 'python')
+    
+    def _detect_language_from_path(self, file_path: str) -> str:
+        """Detect programming language from file path"""
+        file_ext = Path(file_path).suffix.lower()
+        
+        ext_map = {
+            '.py': 'python',
+            '.js': 'javascript',
+            '.jsx': 'javascript',
+            '.ts': 'typescript',
+            '.tsx': 'typescript',
+            '.java': 'java',
+            '.cpp': 'cpp',
+            '.cc': 'cpp',
+            '.cxx': 'cpp',
+            '.c': 'c',
+            '.h': 'c',
+            '.hpp': 'cpp',
+            '.go': 'go',
+            '.rs': 'rust',
+        }
+        
+        return ext_map.get(file_ext, 'unknown')
+    
+    def _run_eslint_analysis(self, file_path: str) -> List[Dict[str, Any]]:
+        """Run ESLint analysis for JavaScript/TypeScript"""
+        try:
+            result = subprocess.run(
+                ['eslint', file_path, '--format', 'json'],
+                capture_output=True,
+                text=True
+            )
+            
+            if result.returncode != 0 and result.stdout:
+                eslint_output = json.loads(result.stdout)
+                findings = []
+                
+                for issue in eslint_output:
+                    findings.append({
+                        'type': 'quality',
+                        'rule_id': issue.get('ruleId', 'unknown'),
+                        'rule_name': issue.get('ruleId', 'unknown'),
+                        'severity': self._map_eslint_severity(issue.get('severity', 1)),
+                        'confidence': 'medium',
+                        'title': issue.get('message', 'ESLint issue'),
+                        'description': issue.get('message', 'Code quality issue detected'),
+                        'file_path': file_path,
+                        'line_number': issue.get('line', 0),
+                        'end_line_number': issue.get('endLine', issue.get('line', 0)),
+                        'column': issue.get('column', 0),
+                        'end_column': issue.get('endColumn', 0),
+                        'code_snippet': self._get_code_snippet(file_path, issue.get('line', 0), issue.get('endLine', issue.get('line', 0))),
+                        'recommendation': self._get_eslint_recommendation(issue.get('ruleId', ''))
+                    })
+                
+                return findings
+            
+            return []
+            
+        except Exception as e:
+            return [{
+                'type': 'error',
+                'severity': 'medium',
+                'message': f'ESLint analysis failed: {str(e)}',
+                'file_path': file_path
+            }]
+    
+    def _map_eslint_severity(self, eslint_severity: int) -> str:
+        """Map ESLint severity to standard severity levels"""
+        severity_map = {
+            1: 'low',      # Warning
+            2: 'medium',   # Error
+        }
+        return severity_map.get(eslint_severity, 'medium')
+    
+    def _get_eslint_recommendation(self, rule_id: str) -> str:
+        """Get ESLint recommendation based on rule"""
+        recommendations = {
+            'no-unused-vars': 'Remove unused variables or use underscore prefix',
+            'no-console': 'Remove console.log statements in production code',
+            'no-undef': 'Define variables before using them',
+            'semi': 'Add or remove semicolons according to style guide',
+            'quotes': 'Use consistent quote style (single or double)',
+            'indent': 'Fix indentation to be consistent',
+            'no-trailing-spaces': 'Remove trailing whitespace',
+            'eol-last': 'Add newline at end of file'
+        }
+        
+        return recommendations.get(rule_id, 'Fix the ESLint violation according to the rule documentation')
+    
     def _get_code_snippet(self, file_path: str, start_line: int, end_line: int) -> str:
         """Extract code snippet from file"""
         try:
@@ -334,7 +481,7 @@ class StaticAnalyzer:
         except Exception:
             return ''
     
-    def _map_severity(self, severity_or_code: str, default_severity: str = 'medium') -> str:
+    def _map_severity(self, severity_or_code: Union[str, int, float], default_severity: str = 'medium') -> str:
         """Map severity or code to standardized severity levels"""
         severity_mapping = {
             # Pylint severity levels

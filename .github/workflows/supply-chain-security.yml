@@ -1,0 +1,492 @@
+name: Supply Chain Security
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 3 AM UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  sbom-generation:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'frontend'
+
+      - name: Install CycloneDX (Python)
+        run: |
+          pip install cyclonedx-bom
+
+      - name: Install CycloneDX (Node.js)
+        run: |
+          cd frontend
+          npm install -g @cyclonedx/cyclonedx-cli
+
+      - name: Generate Python SBOM
+        run: |
+          cyclonedx-py -o backend-sbom.json -i backend/
+
+      - name: Generate Frontend SBOM
+        run: |
+          cd frontend
+          cyclonedx-bom -o ../frontend-sbom.json -p .
+
+      - name: Merge SBOMs
+        run: |
+          jq -s 'add(.[0] | .components) + add(.[1] | .components)' backend-sbom.json frontend-sbom.json > combined-sbom.json
+
+      - name: Upload SBOMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: |
+            backend-sbom.json
+            frontend-sbom.json
+            combined-sbom.json
+          retention-days: 90
+
+      - name: Submit SBOM to Dependency Track
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          DEPENDENCY_TRACK_URL: ${{ secrets.DEPENDENCY_TRACK_URL }}
+          DEPENDENCY_TRACK_API_KEY: ${{ secrets.DEPENDENCY_TRACK_API_KEY }}
+        run: |
+          if [ -n "$DEPENDENCY_TRACK_URL" ] && [ -n "$DEPENDENCY_TRACK_API_KEY" ]; then
+            curl -X POST \
+              -H "X-Api-Key: $DEPENDENCY_TRACK_API_KEY" \
+              -H "Content-Type: application/json" \
+              --upload-file combined-sbom.json \
+              "$DEPENDENCY_TRACK_URL/api/v1/bom"
+          fi
+
+  vulnerability-scan:
+    name: Vulnerability Scanning
+    runs-on: ubuntu-latest
+    needs: sbom-generation
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download SBOMs
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: sbom/
+
+      - name: Setup Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan Python Dependencies
+        run: |
+          grype sbom:backend-sbom.json \
+            --output json \
+            --file python-vulnerabilities.json \
+            --add-cpes-if-none
+
+      - name: Scan Frontend Dependencies
+        run: |
+          grype sbom:frontend-sbom.json \
+            --output json \
+            --file frontend-vulnerabilities.json \
+            --add-cpes-if-none
+
+      - name: Scan Combined Dependencies
+        run: |
+          grype sbom:combined-sbom.json \
+            --output json \
+            --file combined-vulnerabilities.json \
+            --add-cpes-if-none
+
+      - name: Upload Vulnerability Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-reports
+          path: |
+            python-vulnerabilities.json
+            frontend-vulnerabilities.json
+            combined-vulnerabilities.json
+          retention-days: 90
+
+      - name: Generate SARIF Report
+        run: |
+          # Convert to SARIF format for GitHub Security tab
+          jq '{
+            version: "2.1.0",
+            "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+            runs: [{
+              tool: {
+                driver: {
+                  name: "Grype",
+                  version: "latest",
+                  informationUri: "https://github.com/anchore/grype"
+                }
+              },
+              results: [
+                .matches[] | {
+                  ruleId: .vulnerability.id // empty,
+                  message: {
+                    text: .vulnerability.id + ": " + .vulnerability.description
+                  },
+                  level: (if .vulnerability.severity == "Critical" then "error" elif .vulnerability.severity == "High" then "error" elif .vulnerability.severity == "Medium" then "warning" else "note" end),
+                  locations: [{
+                    physicalLocation: {
+                      artifactLocation: {
+                        uri: .artifact.name
+                      }
+                    }
+                  }]
+                }
+              ]
+            }]
+          }' combined-vulnerabilities.json > security-scan.sarif
+
+      - name: Upload SARIF to GitHub
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: security-scan.sarif
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const vulnerabilities = JSON.parse(fs.readFileSync('combined-vulnerabilities.json', 'utf8'));
+
+            const critical = vulnerabilities.matches.filter(v => v.vulnerability.severity === 'Critical').length;
+            const high = vulnerabilities.matches.filter(v => v.vulnerability.severity === 'High').length;
+            const medium = vulnerabilities.matches.filter(v => v.vulnerability.severity === 'Medium').length;
+            const low = vulnerabilities.matches.filter(v => v.vulnerability.severity === 'Low').length;
+
+            const comment = `## 🔍 Supply Chain Security Results
+
+            **Vulnerability Summary:**
+            - 🔴 Critical: ${critical}
+            - 🟠 High: ${high}
+            - 🟡 Medium: ${medium}
+            - 🟢 Low: ${low}
+            - 📊 Total: ${vulnerabilities.matches.length}
+
+            ${critical > 0 || high > 0 ? '⚠️ **Critical or High vulnerabilities found. Review required before merge.**' : '✅ **No critical or high vulnerabilities found.**'}
+
+            ---
+            *This comment was generated by supply chain security scan.*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  license-compliance:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    needs: sbom-generation
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download SBOMs
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: sbom/
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install FOSSA
+        run: |
+          pip install fossa-cli
+
+      - name: Run License Scan
+        env:
+          FOSSA_API_KEY: ${{ secrets.FOSSA_API_KEY }}
+        run: |
+          if [ -n "$FOSSA_API_KEY" ]; then
+            fossa analyze --branch ${{ github.ref_name }}
+          else
+            echo "FOSSA_API_KEY not configured, running local license check..."
+            
+            # Local license check using pip-licenses
+            pip install pip-licenses
+            cd backend
+            pip-licenses --from=mixed --format=json > ../backend-licenses.json || true
+            
+            # Check for problematic licenses
+            node -e "
+              const fs = require('fs');
+              const licenses = JSON.parse(fs.readFileSync('../backend-licenses.json', 'utf8'));
+              const problematic = ['GPL-3.0', 'AGPL-3.0', 'LGPL-3.0'];
+              const found = licenses.filter(pkg => 
+                problematic.some(license => 
+                  pkg.license && pkg.license.includes(license)
+                )
+              );
+              
+              if (found.length > 0) {
+                console.log('Problematic licenses found:', found);
+                process.exit(1);
+              } else {
+                console.log('No problematic licenses found');
+              }
+            "
+          fi
+
+      - name: Generate License Report
+        run: |
+          # Create license summary
+          cat > license-report.md << 'EOF'
+          # License Compliance Report
+
+          ## Summary
+          - Generated: $(date)
+          - Branch: ${{ github.ref_name }}
+          - Commit: ${{ github.sha }}
+
+          ## License Policy
+          - ✅ Permissive: MIT, Apache-2.0, BSD, ISC
+          - ⚠️  Copyleft: GPL, LGPL (requires review)
+          - ❌ Restricted: AGPL, SSPL, proprietary
+
+          ## Findings
+          EOF
+
+          if [ -f backend-licenses.json ]; then
+            echo "### Backend Dependencies" >> license-report.md
+            echo '```json' >> license-report.md
+            cat backend-licenses.json >> license-report.md
+            echo '```' >> license-report.md
+          fi
+
+      - name: Upload License Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: license-report
+          path: license-report.md
+          retention-days: 90
+
+      - name: Comment PR with License Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let comment = '## 📄 License Compliance Results\n\n';
+
+            if (fs.existsSync('license-report.md')) {
+              const report = fs.readFileSync('license-report.md', 'utf8');
+              comment += report + '\n\n';
+            } else {
+              comment += 'No license issues detected.\n\n';
+            }
+
+            comment += '---\n*This comment was generated by license compliance scan.*';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  dependency-drift-detection:
+    name: Dependency Drift Detection
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout Base Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: base-branch
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Generate Base SBOM
+        run: |
+          pip install cyclonedx-bom
+          cyclonedx-py -o base-backend-sbom.json -i base-branch/backend/
+          cd base-branch/frontend
+          npm install
+          npx @cyclonedx/cyclonedx-cli -o ../../base-frontend-sbom.json -p .
+
+      - name: Generate PR SBOM
+        run: |
+          cyclonedx-py -o pr-backend-sbom.json -i backend/
+          cd frontend
+          npx @cyclonedx/cyclonedx-cli -o ../pr-frontend-sbom.json -p .
+
+      - name: Compare Dependencies
+        run: |
+          # Python dependency comparison
+          python3 << 'EOF'
+          import json
+
+          with open('base-backend-sbom.json') as f:
+              base_backend = json.load(f)
+          with open('pr-backend-sbom.json') as f:
+              pr_backend = json.load(f)
+
+          base_deps = {comp['name'] for comp in base_backend.get('components', [])}
+          pr_deps = {comp['name'] for comp in pr_backend.get('components', [])}
+
+          added = pr_deps - base_deps
+          removed = base_deps - pr_deps
+
+          print(f"Backend dependencies added: {len(added)}")
+          print(f"Backend dependencies removed: {len(removed)}")
+
+          if added or removed:
+              with open('backend-drift.json', 'w') as f:
+                  json.dump({
+                      'added': list(added),
+                      'removed': list(removed)
+                  }, f, indent=2)
+          EOF
+
+      - name: Comment PR with Drift Results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let comment = '## 📊 Dependency Drift Results\n\n';
+
+            if (fs.existsSync('backend-drift.json')) {
+              const drift = JSON.parse(fs.readFileSync('backend-drift.json', 'utf8'));
+              
+              if (drift.added.length > 0) {
+                comment += '### ➕ Dependencies Added\n';
+                comment += drift.added.slice(0, 10).map(dep => `- ${dep}`).join('\n');
+                if (drift.added.length > 10) {
+                  comment += `\n... and ${drift.added.length - 10} more`;
+                }
+                comment += '\n\n';
+              }
+              
+              if (drift.removed.length > 0) {
+                comment += '### ➖ Dependencies Removed\n';
+                comment += drift.removed.slice(0, 10).map(dep => `- ${dep}`).join('\n');
+                if (drift.removed.length > 10) {
+                  comment += `\n... and ${drift.removed.length - 10} more`;
+                }
+                comment += '\n\n';
+              }
+              
+              comment += '⚠️ **Dependency changes detected. Please review the impact.**';
+            } else {
+              comment += '✅ **No dependency drift detected.**';
+            }
+
+            comment += '\n\n---\n*This comment was generated by dependency drift detection.*';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [vulnerability-scan, license-compliance]
+    if: always()
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Download Reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/
+          pattern: '*-report'
+
+      - name: Generate Security Summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## 🔒 Supply Chain Security Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Vulnerability summary
+          if [ -f "reports/vulnerability-reports/combined-vulnerabilities.json" ]; then
+            CRITICAL=$(jq '[.matches[] | select(.vulnerability.severity == "Critical")] | length' reports/vulnerability-reports/combined-vulnerabilities.json 2>/dev/null || echo "0")
+            HIGH=$(jq '[.matches[] | select(.vulnerability.severity == "High")] | length' reports/vulnerability-reports/combined-vulnerabilities.json 2>/dev/null || echo "0")
+            MEDIUM=$(jq '[.matches[] | select(.vulnerability.severity == "Medium")] | length' reports/vulnerability-reports/combined-vulnerabilities.json 2>/dev/null || echo "0")
+            LOW=$(jq '[.matches[] | select(.vulnerability.severity == "Low")] | length' reports/vulnerability-reports/combined-vulnerabilities.json 2>/dev/null || echo "0")
+            
+            echo "### 🛡️ Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟠 High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟡 Medium | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # License compliance summary
+          if [ -f "reports/license-report/license-report.md" ]; then
+            echo "### 📄 License Compliance" >> $GITHUB_STEP_SUMMARY
+            echo "✅ License scan completed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 📄 License Compliance" >> $GITHUB_STEP_SUMMARY
+            echo "✅ No license issues detected" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Supply chain security analysis complete**" >> $GITHUB_STEP_SUMMARY

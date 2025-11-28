@@ -1,0 +1,432 @@
+name: Container Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run daily at 4 AM UTC
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  image-vulnerability-scan:
+    name: Container Vulnerability Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Container Images
+        run: |
+          # Build backend image
+          docker buildx build \
+            -t ai-review-backend:latest \
+            -f backend/Dockerfile.security \
+            --load \
+            backend/
+
+          # Build frontend image
+          docker buildx build \
+            -t ai-review-frontend:latest \
+            -f frontend/Dockerfile \
+            --load \
+            frontend/
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ai-review-backend:latest'
+          format: 'sarif'
+          output: 'backend-trivy-results.sarif'
+
+      - name: Run Trivy on Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ai-review-frontend:latest'
+          format: 'sarif'
+          output: 'frontend-trivy-results.sarif'
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: backend-trivy-results.sarif
+
+      - name: Upload Frontend SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: frontend-trivy-results.sarif
+
+      - name: Generate Vulnerability Report
+        run: |
+          # Convert SARIF to readable format
+          python3 << 'EOF'
+          import json
+          import sys
+
+          def parse_sarif(file_path):
+              try:
+                  with open(file_path, 'r') as f:
+                      return json.load(f)
+              except FileNotFoundError:
+                  return {"runs": []}
+
+          def extract_vulnerabilities(sarif_data):
+              vulnerabilities = []
+              for run in sarif_data.get('runs', []):
+                  for result in run.get('results', []):
+                      vuln = {
+                          'id': result.get('ruleId', 'unknown'),
+                          'message': result.get('message', {}).get('text', ''),
+                          'severity': result.get('level', 'note'),
+                          'file': result.get('locations', [{}])[0].get('physicalLocation', {}).get('artifactLocation', {}).get('uri', ''),
+                          'line': result.get('locations', [{}])[0].get('physicalLocation', {}).get('region', {}).get('startLine', 0)
+                      }
+                      vulnerabilities.append(vuln)
+              return vulnerabilities
+
+          # Parse backend results
+          backend_sarif = parse_sarif('backend-trivy-results.sarif')
+          backend_vulns = extract_vulnerabilities(backend_sarif)
+
+          # Parse frontend results
+          frontend_sarif = parse_sarif('frontend-trivy-results.sarif')
+          frontend_vulns = extract_vulnerabilities(frontend_sarif)
+
+          # Count by severity
+          def count_by_severity(vulns):
+              counts = {'CRITICAL': 0, 'HIGH': 0, 'MEDIUM': 0, 'LOW': 0}
+              for vuln in vulns:
+                  severity = vuln.get('severity', 'LOW').upper()
+                  if severity in counts:
+                      counts[severity] += 1
+              return counts
+
+          backend_counts = count_by_severity(backend_vulns)
+          frontend_counts = count_by_severity(frontend_vulns)
+
+          # Generate report
+          report = {
+              'backend': {
+                  'total': len(backend_vulns),
+                  'critical': backend_counts['CRITICAL'],
+                  'high': backend_counts['HIGH'],
+                  'medium': backend_counts['MEDIUM'],
+                  'low': backend_counts['LOW']
+              },
+              'frontend': {
+                  'total': len(frontend_vulns),
+                  'critical': frontend_counts['CRITICAL'],
+                  'high': frontend_counts['HIGH'],
+                  'medium': frontend_counts['MEDIUM'],
+                  'low': frontend_counts['LOW']
+              }
+          }
+
+          with open('vulnerability-report.json', 'w') as f:
+              json.dump(report, f, indent=2)
+
+          print(f"Backend vulnerabilities: {report['backend']['total']}")
+          print(f"Frontend vulnerabilities: {report['frontend']['total']}")
+          EOF
+
+      - name: Upload Vulnerability Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerability-report
+          path: vulnerability-report.json
+          retention-days: 90
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = JSON.parse(fs.readFileSync('vulnerability-report.json', 'utf8'));
+
+            const backend = report.backend;
+            const frontend = report.frontend;
+            const totalCritical = backend.critical + frontend.critical;
+            const totalHigh = backend.high + frontend.high;
+
+            const comment = `## 🛡️ Container Security Results
+
+            ### Backend Vulnerabilities
+            | Severity | Count |
+            |----------|-------|
+            | 🔴 Critical | ${backend.critical} |
+            | 🟠 High | ${backend.high} |
+            | 🟡 Medium | ${backend.medium} |
+            | 🟢 Low | ${backend.low} |
+            | 📊 Total | ${backend.total} |
+
+            ### Frontend Vulnerabilities
+            | Severity | Count |
+            |----------|-------|
+            | 🔴 Critical | ${frontend.critical} |
+            | 🟠 High | ${frontend.high} |
+            | 🟡 Medium | ${frontend.medium} |
+            | 🟢 Low | ${frontend.low} |
+            | 📊 Total | ${frontend.total} |
+
+            ### Overall Summary
+            - 🔴 Total Critical: ${totalCritical}
+            - 🟠 Total High: ${totalHigh}
+            - 📊 Total Vulnerabilities: ${backend.total + frontend.total}
+
+            ${totalCritical > 0 || totalHigh > 0 ? '⚠️ **Critical or High vulnerabilities found. Review required before merge.**' : '✅ **No critical or high vulnerabilities found.**'}
+
+            ---
+            *This comment was generated by container security scan.*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  cis-benchmark-scan:
+    name: CIS Docker Benchmark
+    runs-on: ubuntu-latest
+    needs: image-vulnerability-scan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Docker Bench
+        run: |
+          # Install Docker Bench
+          curl -sSfL https://raw.githubusercontent.com/docker/docker-bench-security/master/docker-bench-security.sh | sh -s -- -b /usr/local/bin
+
+          # Run CIS benchmark
+          docker-bench-security --format json --no-color > cis-benchmark-results.json || true
+
+          # Generate compliance score
+          python3 << 'EOF'
+          import json
+          import sys
+
+          try:
+              with open('cis-benchmark-results.json', 'r') as f:
+                  results = json.load(f)
+          except FileNotFoundError:
+              print("No CIS benchmark results found")
+              sys.exit(0)
+
+          # Calculate compliance score
+          total_tests = 0
+          passed_tests = 0
+
+          for test in results.get('tests', []):
+              total_tests += 1
+              if test.get('result', False):
+                  passed_tests += 1
+
+          compliance_score = (passed_tests / total_tests * 100) if total_tests > 0 else 0
+
+          # Generate summary
+          summary = {
+              'compliance_score': round(compliance_score, 1),
+              'total_tests': total_tests,
+              'passed_tests': passed_tests,
+              'failed_tests': total_tests - passed_tests,
+              'level': 'Level 1' if compliance_score >= 80 else 'Level 2' if compliance_score >= 60 else 'Not Compliant'
+          }
+
+          with open('cis-compliance-summary.json', 'w') as f:
+              json.dump(summary, f, indent=2)
+
+          print(f"CIS Compliance Score: {summary['compliance_score']}%")
+          print(f"Compliance Level: {summary['level']}")
+          EOF
+
+      - name: Upload CIS Benchmark Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: cis-benchmark-results
+          path: |
+            cis-benchmark-results.json
+            cis-compliance-summary.json
+          retention-days: 90
+
+      - name: Check Compliance Threshold
+        run: |
+          python3 << 'EOF'
+          import json
+          import sys
+
+          with open('cis-compliance-summary.json', 'r') as f:
+              summary = json.load(f)
+
+          compliance_score = summary.get('compliance_score', 0)
+          compliance_level = summary.get('level', 'Not Compliant')
+
+          print(f"Compliance Score: {compliance_score}%")
+          print(f"Compliance Level: {compliance_level}")
+
+          # Fail if below threshold
+          if compliance_score < 80:
+              print("❌ CIS compliance below 80% threshold")
+              sys.exit(1)
+          else:
+              print("✅ CIS compliance meets requirements")
+              sys.exit(0)
+          EOF
+
+  runtime-security-monitoring:
+    name: Runtime Security Monitoring
+    runs-on: ubuntu-latest
+    needs: image-vulnerability-scan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate Runtime Security Config
+        run: |
+          # Create Falco configuration
+          cat > falco-rules.yaml << 'EOF'
+          # Custom Falco rules for AI Code Review Platform
+          - rule: Suspicious Network Activity
+            desc: Detect suspicious network connections
+            condition: >
+              (proc.name = nc or proc.name = ncat) and
+              (fd.type ipv4 or fd.type ipv6) and
+              (fd.net != 127.0.0.0/8 and fd.net != ::1)
+            output: >
+              Suspicious network activity detected (user=%user.name command=%proc.cmdline connection=%fd.name)
+            priority: WARNING
+            tags: [network, security]
+
+          - rule: Unauthorized File Access
+            desc: Detect unauthorized file access attempts
+            condition: >
+              (proc.name in (cat, vim, nano) and
+              fd.name contains (password, secret, key, token)) and
+              not user.name in (root, appuser))
+            output: >
+              Unauthorized access to sensitive file (user=%user.name file=%fd.name command=%proc.cmdline)
+            priority: HIGH
+            tags: [file, security]
+          EOF
+
+      - name: Upload Falco Configuration
+        uses: actions/upload-artifact@v4
+        with:
+          name: falco-config
+          path: falco-rules.yaml
+          retention-days: 90
+
+      - name: Generate Security Monitoring Script
+        run: |
+          cat > security-monitoring.sh << 'EOF'
+          #!/bin/bash
+          # Runtime Security Monitoring Script
+
+          echo "Starting runtime security monitoring..."
+
+          # Check for running containers
+          echo "Checking running containers..."
+          docker ps --format "table {{.Names}}\t{{.Image}}\t{{.Status}}"
+
+          # Check for open ports
+          echo "Checking open ports..."
+          netstat -tuln | grep LISTEN
+
+          # Check for suspicious processes
+          echo "Checking for suspicious processes..."
+          ps aux | grep -E "(nc|ncat|telnet)" || echo "No suspicious processes found"
+
+          # Check file permissions
+          echo "Checking file permissions..."
+          find /app -type f -perm /o=w -ls 2>/dev/null || echo "No world-writable files found"
+
+          # Check for setuid files
+          echo "Checking for setuid files..."
+          find /app -type f -perm -4000 -ls 2>/dev/null || echo "No setuid files found"
+
+          echo "Runtime security monitoring completed"
+          EOF
+
+          chmod +x security-monitoring.sh
+
+      - name: Upload Security Monitoring Script
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-monitoring
+          path: security-monitoring.sh
+          retention-days: 90
+
+  security-summary:
+    name: Security Summary
+    runs-on: ubuntu-latest
+    needs: [image-vulnerability-scan, cis-benchmark-scan]
+    if: always()
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Download Reports
+        uses: actions/download-artifact@v4
+        with:
+          path: reports/
+          pattern: '*-results'
+
+      - name: Generate Security Summary
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## 🛡️ Container Security Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Vulnerability summary
+          if [ -f "reports/vulnerability-report/vulnerability-report.json" ]; then
+            CRITICAL=$(jq '.backend.critical + .frontend.critical' reports/vulnerability-report/vulnerability-report.json 2>/dev/null || echo "0")
+            HIGH=$(jq '.backend.high + .frontend.high' reports/vulnerability-report/vulnerability-report.json 2>/dev/null || echo "0")
+            MEDIUM=$(jq '.backend.medium + .frontend.medium' reports/vulnerability-report/vulnerability-report.json 2>/dev/null || echo "0")
+            LOW=$(jq '.backend.low + .frontend.low' reports/vulnerability-report/vulnerability-report.json 2>/dev/null || echo "0")
+            
+            echo "### 🛡️ Vulnerability Scan" >> $GITHUB_STEP_SUMMARY
+            echo "| Severity | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| 🔴 Critical | $CRITICAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟠 High | $HIGH |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟡 Medium | $MEDIUM |" >> $GITHUB_STEP_SUMMARY
+            echo "| 🟢 Low | $LOW |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # CIS compliance summary
+          if [ -f "reports/cis-benchmark-results/cis-compliance-summary.json" ]; then
+            COMPLIANCE_SCORE=$(jq '.compliance_score' reports/cis-benchmark-results/cis-compliance-summary.json 2>/dev/null || echo "0")
+            COMPLIANCE_LEVEL=$(jq -r '.level' reports/cis-benchmark-results/cis-compliance-summary.json 2>/dev/null || echo "Unknown")
+            
+            echo "### 📋 CIS Compliance" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Score | $COMPLIANCE_SCORE% |" >> $GITHUB_STEP_SUMMARY
+            echo "| Level | $COMPLIANCE_LEVEL |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Container security analysis complete**" >> $GITHUB_STEP_SUMMARY

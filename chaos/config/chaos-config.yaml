@@ -1,0 +1,144 @@
+# Chaos Engineering v2 Configuration
+
+# Budget configuration
+budget:
+  max_experiment_cost: 100.00
+  max_daily_cost: 500.00
+  cost_per_request: 0.001
+  alert_threshold: 0.8
+
+# Experiment configuration
+experiments:
+  network_latency:
+    enabled: true
+    max_latency_ms: 2000
+    cost_per_minute: 0.10
+    impact_threshold: 0.3
+
+  pod_deletion:
+    enabled: true
+    max_pods_deleted: 2
+    cost_per_pod: 50.00
+    impact_score_threshold: 0.3
+
+  resource_exhaustion:
+    enabled: true
+    max_cpu_usage: 0.9
+    max_memory_usage: 0.85
+    impact_threshold: 0.7
+
+  api_error_injection:
+    enabled: true
+    error_rate: [0.01, 0.05, 0.1]
+    error_types: [500, 502, 503, timeout]
+
+  database_load:
+    enabled: true
+    max_connections: 100
+    connection_timeout_ms: 1000
+    query_timeout_ms: 5000
+    impact_threshold: 0.4
+
+  service_dependency:
+    enabled: true
+    failure_rate: [0.01, 0.05, 0.1]
+    impact_threshold: 0.2
+
+# Safety checks
+safety_checks:
+  slo_validation:
+    enabled: true
+    critical_slos: ['api_response_time_p95', 'api_availability', 'error_rate']
+    warning_slos: ['database_connection_time_p95']
+
+  health_checks:
+    enabled: true
+    min_availability: 0.99
+    min_success_rate: 0.95
+
+  rollback_triggers:
+    slo_violation: true
+    error_rate_increase: 0.5
+    availability_drop: 0.05
+    health_degradation: 0.1
+
+  rollback:
+  automatic: true
+  manual_trigger: 'emergency_stop'
+  max_rollback_time: 300
+  notification_channels: ['slack', 'email', 'pagerduty']
+
+  strategies:
+    pod_restart: true
+    traffic_shift: true
+    feature_flag_disable: true
+    scale_down: true
+
+# Monitoring configuration
+monitoring:
+  prometheus:
+    enabled: true
+    metrics_port: 9090
+    alertmanager_port: 9093
+
+  grafana:
+    enabled: true
+    dashboards: ['chaos-experiments', 'chaos-metrics']
+
+  custom_metrics:
+    enabled: true
+    collection_interval: 30s
+
+# Rollback configuration
+rollback:
+  automatic: true
+  manual_trigger: 'emergency_stop'
+  max_rollback_time: 300
+  notification_channels: ['slack', 'email', 'pagerduty']
+
+  strategies:
+    pod_restart: true
+    traffic_shift: true
+    feature_flag_disable: true
+    scale_down: true
+
+# Experiment types
+experiment_types:
+  network_latency:
+    description: 'Introduce controlled network latency'
+    implementation: 'istio-proxy'
+    parameters:
+      latency_ms: [100, 500, 1000, 2000]
+      jitter: 0.1
+      packet_loss: [0.01, 0.05, 0.1]
+
+  pod_deletion:
+    description: 'Terminate specific pods during experiments'
+    implementation: 'kubectl delete'
+    parameters:
+      pods: ['frontend-*', 'backend-*']
+      max_pods: 3
+      impact_score_threshold: 0.3
+
+  api_error_injection:
+    description: 'Simulate API failures'
+    implementation: 'fault-injection'
+    parameters:
+      error_rate: [0.01, 0.05, 0.1]
+      error_types: [500, 502, 503, timeout]
+
+  database_load:
+    description: 'Increase database load during experiments'
+    implementation: 'database'
+    parameters:
+      max_connections: 100
+      connection_timeout_ms: 1000
+      query_timeout_ms: 5000
+      impact_threshold: 0.4
+
+  service_dependency:
+    description: 'Break external service dependencies'
+    implementation: 'service-mesh'
+    parameters:
+      failure_rate: [0.01, 0.05, 0.1]
+      impact_threshold: 0.2
