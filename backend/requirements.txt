@@ -46,7 +46,7 @@ python-dotenv==1.0.0
 tenacity==8.2.2
 loguru==0.7.0
 prometheus-fastapi-instrumentator==6.1.0
-prometheus-client==0.17.1
+prometheus-client==0.23.1
 python-logstash==0.4.8
 PyYAML==6.0.2
 aiohttp==3.9.1
