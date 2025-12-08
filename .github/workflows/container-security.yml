@@ -140,7 +140,7 @@ jobs:
           EOF
 
       - name: Upload Vulnerability Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: vulnerability-report
           path: vulnerability-report.json
@@ -257,7 +257,7 @@ jobs:
           EOF
 
       - name: Upload CIS Benchmark Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: cis-benchmark-results
           path: |
@@ -331,7 +331,7 @@ jobs:
           EOF
 
       - name: Upload Falco Configuration
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: falco-config
           path: falco-rules.yaml
@@ -371,7 +371,7 @@ jobs:
           chmod +x security-monitoring.sh
 
       - name: Upload Security Monitoring Script
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: security-monitoring
           path: security-monitoring.sh
