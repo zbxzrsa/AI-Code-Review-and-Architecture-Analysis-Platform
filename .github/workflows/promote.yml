@@ -6,7 +6,7 @@ jobs:
   promote:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Gate by simple SLO signal (placeholder)
         run: echo "Check metrics here; proceed only if healthy for 24h"
       - name: Merge next -> stable
