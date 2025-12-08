@@ -27,7 +27,7 @@ nltk==3.8.1
 langdetect==1.0.9
 
 # HTTP客户端
-httpx==0.25.2
+httpx==0.28.1
 
 # 序列化
 orjson==3.11.4
