@@ -36,7 +36,7 @@ orjson==3.11.4
 python-dateutil==2.8.2
 
 # 类型检查
-typing-extensions==4.8.0
+typing-extensions==4.15.0
 
 # 安全
 cryptography==41.0.8
