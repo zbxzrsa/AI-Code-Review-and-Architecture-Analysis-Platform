@@ -57,12 +57,12 @@ jobs:
           output: 'frontend-trivy-results.sarif'
 
       - name: Upload SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: backend-trivy-results.sarif
 
       - name: Upload Frontend SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: frontend-trivy-results.sarif
 
