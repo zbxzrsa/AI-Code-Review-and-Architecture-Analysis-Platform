@@ -83,7 +83,7 @@ jobs:
           pytest tests/unit/ -v --maxfail=1 --cov=app --cov-report=xml --cov-report=html --junit-xml=test-report.xml
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: backend-coverage-${{ matrix.python-version }}
           path: |
@@ -128,7 +128,7 @@ jobs:
         run: npm test -- --watchAll=false --coverage
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: frontend-coverage
           path: frontend/coverage/
@@ -165,7 +165,7 @@ jobs:
             --output ./eval-smoke-results
 
       - name: Upload eval results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ai-eval-smoke
           path: backend/eval-smoke-results/
@@ -331,7 +331,7 @@ jobs:
           pytest tests/ai/test_structured_review.py -v --tb=short || true
 
       - name: Upload structured test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: structured-json-smoke-results
           path: |
@@ -374,7 +374,7 @@ jobs:
             --report=contract-test-report.json || true
 
       - name: Upload contract test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: contract-test-results
           path: contract-test-report.json
@@ -412,7 +412,7 @@ jobs:
           npx playwright test tests/e2e/smoke.spec.ts --reporter=json || true
 
       - name: Upload E2E results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: e2e-smoke-results
           path: frontend/playwright-report/
@@ -468,7 +468,7 @@ jobs:
           pytest tests/integration/ -v --maxfail=1 --junit-xml=integration-test-report.xml || true
 
       - name: Upload integration test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: integration-test-results
           path: backend/integration-test-report.xml

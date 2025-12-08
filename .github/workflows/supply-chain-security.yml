@@ -58,7 +58,7 @@ jobs:
           jq -s 'add(.[0] | .components) + add(.[1] | .components)' backend-sbom.json frontend-sbom.json > combined-sbom.json
 
       - name: Upload SBOMs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: sbom
           path: |
@@ -126,7 +126,7 @@ jobs:
             --add-cpes-if-none
 
       - name: Upload Vulnerability Reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: vulnerability-reports
           path: |
@@ -295,7 +295,7 @@ jobs:
           fi
 
       - name: Upload License Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: license-report
           path: license-report.md

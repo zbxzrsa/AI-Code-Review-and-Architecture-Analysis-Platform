@@ -33,7 +33,7 @@ jobs:
             --dataset datasets/ai_eval/base.jsonl
 
       - name: Upload Experiment Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: experiment-results
           path: backend/experiment_results.json
